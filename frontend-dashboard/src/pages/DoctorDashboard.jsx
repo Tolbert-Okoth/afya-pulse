@@ -22,8 +22,11 @@ const DoctorDashboard = () => {
   const audioRef = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'));
   const alarmRef = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2868/2868-preview.mp3')); 
 
-  // 🛡️ CORRECT BACKEND URL (Port 4000)
-  const BACKEND_URL = "http://localhost:4000/api";
+  // 🛡️ DYNAMIC URL CONFIGURATION
+  // 1. Base URL for Socket.io (No /api)
+  const BASE_URL = import.meta.env.VITE_API_URL || "https://afya-pulse-backend.onrender.com";
+  // 2. URL for Axios Requests (With /api)
+  const BACKEND_URL = `${BASE_URL}/api`;
 
   const sortQueue = (data) => {
     const priority = { 'RED': 0, 'YELLOW': 1, 'GREEN': 2 };
@@ -135,9 +138,10 @@ const DoctorDashboard = () => {
   }, [refreshKey, token]); // Added token dependency
 
   useEffect(() => {
-    // 🛡️ Socket Connects to Port 4000
-    const socket = io('http://localhost:4000');
-    socket.on('connect', () => console.log("🟢 Doctor Dashboard Connected (Port 4000)"));
+    // 🛡️ Socket Connects to Dynamic BASE_URL
+    const socket = io(BASE_URL);
+    
+    socket.on('connect', () => console.log(`🟢 Connected to Backend: ${BASE_URL}`));
 
     socket.on('queue_update', (data) => {
         console.log("🔔 Network Alert:", data);
@@ -148,7 +152,7 @@ const DoctorDashboard = () => {
     });
 
     return () => socket.disconnect();
-  }, []);
+  }, [BASE_URL]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
