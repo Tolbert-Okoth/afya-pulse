@@ -1,0 +1,403 @@
+/* =========================================
+   1. MODERN VARIABLES & THEME
+   ========================================= */
+:root {
+  /* Brand Colors - More Vibrant */
+  --primary: #3B82F6;       /* Bright Royal Blue */
+  --primary-dark: #2563EB;
+  --bg-gradient: radial-gradient(circle at 10% 20%, rgb(241, 245, 249) 0%, rgb(219, 234, 254) 90%);
+  
+  /* Status Colors (Pastel & Readable) */
+  --green-bg: #D1FAE5; --green-text: #065F46;
+  --yellow-bg: #FEF3C7; --yellow-text: #92400E;
+  --red-bg: #FEE2E2; --red-text: #991B1B;
+  
+  /* UI Elements (Glassmorphism) */
+  --card-bg: rgba(255, 255, 255, 0.85); /* 85% Opacity for Glass Effect */
+  --text-main: #111827;
+  --text-sub: #6B7280;
+  --border: #E5E7EB;
+  
+  /* Shadows for Depth */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg-gradient); /* The "Mesh" Background */
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.dashboard-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =========================================
+   2. GLASS NAVBAR
+   ========================================= */
+.navbar {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px); /* The "Frosted Glass" Blur */
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  position: sticky;
+  top: 0;
+  z-index: 50; /* Stays on top */
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1E40AF;
+}
+
+.logo h1 { 
+  margin: 0; 
+  font-size: 1.5rem; 
+  font-weight: 800; 
+  letter-spacing: -0.5px; 
+}
+
+/* Nav Links */
+.nav-links { display: flex; align-items: center; }
+
+.nav-link {
+  margin-right: 24px;
+  text-decoration: none;
+  color: var(--text-sub);
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.nav-link:hover { color: var(--primary); }
+
+.doctor-link {
+  color: var(--primary);
+  font-weight: 600;
+  background-color: #EFF6FF;
+  padding: 8px 16px;
+  border-radius: 20px;
+}
+
+.doctor-link:hover { background-color: #DBEAFE; }
+
+/* User Status Badge */
+.status-badge {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.9rem; color: var(--text-sub);
+  font-weight: 500;
+  background: rgba(255,255,255, 0.5);
+  padding: 6px 16px;
+  border-radius: 99px;
+  border: 1px solid white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.status-badge:hover { background: white; box-shadow: var(--shadow-sm); }
+.user-email { font-weight: 600; color: var(--text-main); }
+.logout-icon { color: #9CA3AF; transition: color 0.2s; }
+.status-badge:hover .logout-icon { color: var(--red-text); }
+
+
+/* =========================================
+   3. LAYOUT & CARDS
+   ========================================= */
+.main-content {
+  padding: 2rem;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* The New Layout for Nurse Kiosk (Step 2) */
+.split-layout {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr; /* 60% Left, 40% Right */
+  gap: 2rem;
+  align-items: start;
+}
+
+/* Default Card Style */
+.card {
+  background: var(--card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  padding: 2rem;
+  border-radius: 16px; /* Softer Corners */
+  box-shadow: var(--shadow-lg); /* Floating Effect */
+  transition: transform 0.2s ease;
+}
+
+h2 { margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.5rem; font-weight: 700; color: #1F2937; }
+h3 { margin: 0 0 1rem 0; font-size: 1.1rem; font-weight: 600; color: #374151; }
+.subtitle { color: #6B7280; margin-bottom: 1.5rem; font-size: 1rem; }
+
+/* =========================================
+   4. FORMS & INPUTS (TACTILE FEEL)
+   ========================================= */
+.input-group { margin-bottom: 1.5rem; }
+label { display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; color: #374151; }
+
+input, textarea, select {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  font-size: 1rem;
+  box-sizing: border-box;
+  font-family: inherit;
+  background: #F9FAFB;
+  transition: all 0.2s;
+  resize: vertical;
+}
+
+/* Focus Ring - The "Glow" */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: white;
+  box-shadow: var(--shadow-glow);
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex; justify-content: center; align-items: center; gap: 10px;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+  transition: transform 0.1s;
+}
+
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.4); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+.error-msg { 
+  color: var(--red-text); 
+  background: var(--red-bg);
+  padding: 10px;
+  border-radius: 8px;
+  margin-top: 1rem; 
+  display: flex; align-items: center; gap: 8px; font-weight: 500;
+}
+
+/* =========================================
+   5. RESULTS & BADGES
+   ========================================= */
+.result-header { 
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; 
+}
+
+.badge { 
+  padding: 6px 14px; 
+  border-radius: 99px; 
+  font-weight: 700; 
+  font-size: 0.8rem; 
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-RED { background: var(--red-bg); color: var(--red-text); }
+.border-RED { border-left: 6px solid #EF4444; }
+
+.badge-YELLOW { background: var(--yellow-bg); color: var(--yellow-text); }
+.border-YELLOW { border-left: 6px solid #F59E0B; }
+
+.badge-GREEN { background: var(--green-bg); color: var(--green-text); }
+.border-GREEN { border-left: 6px solid #10B981; }
+
+.badge-INVALID { background: #374151; color: #F3F4F6; }
+
+/* Advice Box */
+.advice-box {
+  background-color: #EFF6FF;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  color: #1E40AF;
+  border: 1px solid #DBEAFE;
+}
+
+.advice-box strong { display: block; margin-bottom: 0.5rem; color: #1E3A8A; }
+.advice-box p { margin: 0; line-height: 1.6; }
+
+/* Success Msg */
+.success-msg {
+  color: var(--green-text);
+  background: var(--green-bg);
+  padding: 1rem;
+  border-radius: 12px;
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 600;
+  margin-top: 1rem;
+}
+
+/* =========================================
+   6. TABLE STYLES (Doctor Dashboard)
+   ========================================= */
+.table-container { overflow-x: auto; margin-top: 1rem; }
+
+.queue-table {
+  width: 100%;
+  border-collapse: separate; 
+  border-spacing: 0 10px; /* Space between rows */
+  font-size: 0.95rem;
+}
+
+.queue-table th {
+  text-align: left;
+  padding: 12px 16px;
+  color: var(--text-sub);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+}
+
+.queue-table td {
+  padding: 16px;
+  background: rgba(255,255,255,0.6); /* Semi-transparent rows */
+  vertical-align: middle;
+}
+
+.queue-table tr { 
+  transition: transform 0.2s; 
+}
+.queue-table tr:hover td { background: white; }
+
+/* Left Border Indicators */
+.queue-table tr td:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+.queue-table tr td:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+
+.row-RED td:first-child { border-left: 4px solid #EF4444; }
+.row-YELLOW td:first-child { border-left: 4px solid #F59E0B; }
+.row-GREEN td:first-child { border-left: 4px solid #10B981; }
+
+/* Buttons in Table */
+.btn-queue {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: white;
+  transition: opacity 0.2s;
+  display: inline-flex; align-items: center;
+}
+
+.btn-queue:hover { opacity: 0.9; }
+.btn-treated { background-color: var(--green-text); }
+
+/* --- RESPONSIVE --- */
+@media (max-width: 900px) {
+  .split-layout { grid-template-columns: 1fr; }
+  .grid-layout { grid-template-columns: 1fr; }
+}
+
+/* Live Dot Animation */
+.live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: #10B981;
+  border-radius: 50%;
+  margin-right: 8px;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* 🚨 OUTBREAK ALERT STYLES */
+.outbreak-container {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  width: 80%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.outbreak-banner {
+  background: linear-gradient(90deg, #991B1B 0%, #EF4444 100%);
+  color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: slideDown 0.5s ease-out;
+  border: 2px solid #FECACA;
+}
+
+.outbreak-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.outbreak-content p {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.pulse-icon {
+  animation: pulse-red 1.5s infinite;
+}
+
+.dismiss-btn {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dismiss-btn:hover {
+  background: rgba(255,255,255,0.4);
+}
+
+@keyframes pulse-red {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}

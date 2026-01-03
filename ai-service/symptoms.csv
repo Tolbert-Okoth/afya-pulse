@@ -1,0 +1,424 @@
+symptoms,triage_category
+experiencing dizziness,YELLOW
+human bite,YELLOW
+severe high fever,YELLOW
+anxiety,GREEN
+help with hiccups,GREEN
+suffering from malaria,YELLOW
+suffering from constipation,GREEN
+severe persistent vomiting,YELLOW
+experiencing common cold,GREEN
+patient has suicidal thoughts,RED
+severe knee pain,GREEN
+severe sprained ankle,GREEN
+suffering from constipation,GREEN
+mild blocked ear,GREEN
+mild deep cut,YELLOW
+blue lips,RED
+suffering from dehydration,YELLOW
+scrape,GREEN
+constipation,GREEN
+mild scrape,GREEN
+severe cramps,GREEN
+drowning,RED
+experiencing heartburn,GREEN
+suffering from blue lips,RED
+complains of severe burn,RED
+mild acid reflux,GREEN
+I have not breathing,RED
+suffering from snake bite,RED
+severe severe flu,YELLOW
+help with severe allergic reaction,RED
+severe rash,YELLOW
+complains of coughing blood,RED
+suffering from bruise,GREEN
+I have insomnia,GREEN
+stroke,RED
+experiencing pink eye,GREEN
+experiencing suicidal thoughts,RED
+toothache,GREEN
+fatigue,GREEN
+patient has rusty nail puncture,YELLOW
+I have anxiety,GREEN
+severe difficulty breathing,YELLOW
+nose bleed,GREEN
+help with migraine,YELLOW
+experiencing blood in urine,YELLOW
+complains of blocked ear,GREEN
+mild stomach ache,GREEN
+severe human bite,YELLOW
+experiencing appendicitis,YELLOW
+patient has abdominal pain,YELLOW
+experiencing rash,GREEN
+experiencing stomach ache,GREEN
+I have sneezing,GREEN
+I have watery eyes,GREEN
+sudden paralysis,RED
+I have minor burn,GREEN
+knee pain,GREEN
+patient has stroke,RED
+severe mild cough,GREEN
+I have watery eyes,GREEN
+severe crushed limb,RED
+experiencing sudden paralysis,RED
+experiencing ear ache,GREEN
+patient has poisoning,RED
+ear ache,GREEN
+help with acne,GREEN
+complains of broken leg,YELLOW
+suffering from minor cut,GREEN
+suffering from pink eye,GREEN
+mild third degree burn,RED
+complains of electrocution,RED
+patient has suicidal thoughts,RED
+patient has hiccups,GREEN
+help with fainting,YELLOW
+mild dog bite,YELLOW
+help with malaria,YELLOW
+I have kidney stone,YELLOW
+complains of choking,RED
+trouble sleeping,GREEN
+help with watery eyes,GREEN
+suffering from minor cut,GREEN
+common cold,GREEN
+help with anaphylaxis,RED
+mild severe burn,RED
+mild trouble sleeping,GREEN
+complains of severe rash,YELLOW
+experiencing sneezing,GREEN
+I have requiring stitches,YELLOW
+suffering from severe headache,YELLOW
+severe itchy eyes,GREEN
+I have blurred vision,YELLOW
+experiencing anxiety,GREEN
+patient has convulsions,RED
+malaria,YELLOW
+acid reflux,GREEN
+minor burn,GREEN
+vomiting blood,RED
+I have muscle soreness,GREEN
+heartburn,GREEN
+experiencing broken leg,YELLOW
+patient has knee pain,GREEN
+severe bleeding,RED
+mild cough,GREEN
+malaria,YELLOW
+complains of scrape,GREEN
+persistent vomiting,YELLOW
+broken leg,YELLOW
+patient has dislocation,YELLOW
+experiencing heartburn,GREEN
+dog bite,YELLOW
+experiencing gunshot wound,RED
+help with back pain,GREEN
+patient has not breathing,RED
+mild drank bleach,RED
+I have drank bleach,RED
+snake bite,RED
+patient has persistent vomiting,YELLOW
+mild ear ache,GREEN
+severe mild fever,GREEN
+help with dengue,YELLOW
+gallstones,YELLOW
+hiccups,GREEN
+migraine,YELLOW
+severe blue lips,RED
+complains of poisoning,RED
+mild coughing blood,RED
+suffering from back pain,GREEN
+patient has drowning,RED
+dislocation,YELLOW
+severe burn,RED
+fainting,YELLOW
+bloating,GREEN
+help with overdose,RED
+mild fever,GREEN
+I have fracture,YELLOW
+help with poisoning,RED
+complains of kidney stone,YELLOW
+suffering from abdominal pain,YELLOW
+complains of anaphylaxis,RED
+itchy throat,GREEN
+suffering from broken arm,YELLOW
+suffering from sneezing,GREEN
+I have sudden paralysis,RED
+patient has fatigue,GREEN
+mild dengue,YELLOW
+blurred vision,YELLOW
+dislocation,YELLOW
+mild severe head injury,RED
+I have acid reflux,GREEN
+rash,GREEN
+suffering from sprained ankle,GREEN
+severe gallstones,YELLOW
+patient has common cold,GREEN
+suffering from hiccups,GREEN
+minor cut,GREEN
+help with convulsions,RED
+suffering from sprained ankle,GREEN
+dry skin,GREEN
+experiencing persistent vomiting,YELLOW
+suffering from asthma attack,YELLOW
+patient has stroke,RED
+help with ear ache,GREEN
+sprained ankle,GREEN
+I have abdominal pain,YELLOW
+dengue,YELLOW
+dehydration,YELLOW
+nose bleed,GREEN
+severe broken leg,YELLOW
+severe cardiac arrest,RED
+appendicitis,YELLOW
+dislocation,YELLOW
+indigestion,GREEN
+mild asthma attack,YELLOW
+sore throat,GREEN
+muscle soreness,GREEN
+I have neck pain,GREEN
+rusty nail puncture,YELLOW
+help with stress,GREEN
+severe difficulty breathing,YELLOW
+severe neck pain,GREEN
+severe dehydration,YELLOW
+runny nose,GREEN
+complains of rash,GREEN
+severe tiredness,GREEN
+mild bloating,GREEN
+severe allergic reaction,RED
+severe rusty nail puncture,YELLOW
+patient has seizure,RED
+complains of typhoid,YELLOW
+severe third degree burn,RED
+experiencing amputation,RED
+complains of seizure,RED
+severe high fever,YELLOW
+gum pain,GREEN
+suffering from neck pain,GREEN
+muscle soreness,GREEN
+severe unconscious,RED
+not breathing,RED
+neck pain,GREEN
+electrocution,RED
+I have dog bite,YELLOW
+suffering from acne,GREEN
+complains of dog bite,YELLOW
+choking,RED
+gum pain,GREEN
+help with drowning,RED
+mild coughing blood,RED
+typhoid,YELLOW
+diarrhea,GREEN
+suffering from severe allergic reaction,RED
+gunshot wound,RED
+human bite,YELLOW
+mild trouble sleeping,GREEN
+I have gallstones,YELLOW
+severe headache,YELLOW
+mild fall from height,RED
+patient has acid reflux,GREEN
+bruise,GREEN
+complains of itchy throat,GREEN
+insomnia,GREEN
+severe appendicitis,YELLOW
+requiring stitches,YELLOW
+I have bruise,GREEN
+experiencing heart attack,RED
+amputation,RED
+stab wound,RED
+poisoning,RED
+patient has acne,GREEN
+complains of blood in urine,YELLOW
+sudden paralysis,RED
+mild severe burn,RED
+experiencing anaphylaxis,RED
+overdose,RED
+fracture,YELLOW
+patient has pink eye,GREEN
+complains of blister,GREEN
+suicidal thoughts,RED
+I have nose bleed,GREEN
+help with gum pain,GREEN
+headache,GREEN
+help with human bite,YELLOW
+dry skin,GREEN
+toothache,GREEN
+suffering from common cold,GREEN
+rash,GREEN
+I have sore throat,GREEN
+cramps,GREEN
+help with stab wound,RED
+help with migraine,YELLOW
+patient has runny nose,GREEN
+cardiac arrest,RED
+acne,GREEN
+severe indigestion,GREEN
+help with severe bleeding,RED
+suffering from bloating,GREEN
+stomach ache,GREEN
+mild cardiac arrest,RED
+experiencing amputation,RED
+complains of constipation,GREEN
+I have sunburn,GREEN
+complains of severe flu,YELLOW
+back pain,GREEN
+help with sunburn,GREEN
+I have blocked ear,GREEN
+severe severe headache,YELLOW
+help with blue lips,RED
+severe mild fever,GREEN
+unconscious,RED
+suffering from scrape,GREEN
+mild dry skin,GREEN
+patient has fall from height,RED
+experiencing dengue,YELLOW
+suffering from deep cut,YELLOW
+suffering from mild cough,GREEN
+anaphylaxis,RED
+mild fracture,YELLOW
+suffering from headache,GREEN
+indigestion,GREEN
+experiencing migraine,YELLOW
+complains of itchy throat,GREEN
+suffering from fainting,YELLOW
+deep cut,YELLOW
+I have minor burn,GREEN
+difficulty breathing,YELLOW
+I have choking,RED
+help with mild fever,GREEN
+patient has seizure,RED
+crushed limb,RED
+patient has high fever,YELLOW
+experiencing deep cut,YELLOW
+crushed limb,RED
+help with dizziness,YELLOW
+coughing blood,RED
+severe flu,YELLOW
+vomiting blood,RED
+severe toothache,GREEN
+severe gunshot wound,RED
+blood in urine,YELLOW
+dizziness,YELLOW
+suffering from chest pain,RED
+heart attack,RED
+suffering from stroke,RED
+help with dizziness,YELLOW
+mild bruise,GREEN
+complains of difficulty breathing,YELLOW
+I have tiredness,GREEN
+severe sore throat,GREEN
+I have anxiety,GREEN
+mild tiredness,GREEN
+blister,GREEN
+patient has not breathing,RED
+suffering from diarrhea,GREEN
+complains of bloating,GREEN
+complains of knee pain,GREEN
+experiencing trouble sleeping,GREEN
+mild minor burn,GREEN
+blurred vision,YELLOW
+experiencing itchy eyes,GREEN
+complains of broken arm,YELLOW
+mild cough,GREEN
+experiencing blurred vision,YELLOW
+mild snake bite,RED
+chest pain,RED
+suffering from blister,GREEN
+complains of typhoid,YELLOW
+diarrhea,GREEN
+convulsions,RED
+severe head injury,RED
+blocked ear,GREEN
+third degree burn,RED
+mild severe flu,YELLOW
+complains of overdose,RED
+kidney stone,YELLOW
+high fever,YELLOW
+headache,GREEN
+severe severe head injury,RED
+blister,GREEN
+complains of fatigue,GREEN
+sneezing,GREEN
+I have drank bleach,RED
+mild stomach ache,GREEN
+suffering from vomiting blood,RED
+abdominal pain,YELLOW
+fall from height,RED
+severe fatigue,GREEN
+gunshot wound,RED
+mild drowning,RED
+severe fall from height,RED
+I have chest pain,RED
+experiencing unconscious,RED
+severe severe rash,YELLOW
+drank bleach,RED
+help with headache,GREEN
+mild indigestion,GREEN
+help with kidney stone,YELLOW
+I have electrocution,RED
+experiencing dry skin,GREEN
+dehydration,YELLOW
+mild electrocution,RED
+suffering from unconscious,RED
+heart attack,RED
+suffering from cramps,GREEN
+mild cramps,GREEN
+complains of sunburn,GREEN
+complains of minor cut,GREEN
+experiencing itchy throat,GREEN
+suffering from severe allergic reaction,RED
+severe bleeding,RED
+severe heartburn,GREEN
+patient has gum pain,GREEN
+seizure,RED
+complains of cardiac arrest,RED
+suffering from stab wound,RED
+complains of muscle soreness,GREEN
+complains of itchy eyes,GREEN
+I have severe rash,YELLOW
+help with stress,GREEN
+tiredness,GREEN
+suffering from requiring stitches,YELLOW
+severe nose bleed,GREEN
+suffering from runny nose,GREEN
+watery eyes,GREEN
+blood in urine,YELLOW
+itchy eyes,GREEN
+severe head injury,RED
+mild insomnia,GREEN
+experiencing snake bite,RED
+mild severe headache,YELLOW
+patient has convulsions,RED
+stress,GREEN
+experiencing rusty nail puncture,YELLOW
+overdose,RED
+mild insomnia,GREEN
+requiring stitches,YELLOW
+I have heart attack,RED
+complains of asthma attack,YELLOW
+experiencing amputation,RED
+suffering from third degree burn,RED
+complains of broken arm,YELLOW
+broken arm,YELLOW
+suffering from gallstones,YELLOW
+fracture,YELLOW
+asthma attack,YELLOW
+severe toothache,GREEN
+help with runny nose,GREEN
+mild typhoid,YELLOW
+help with severe bleeding,RED
+I have crushed limb,RED
+pink eye,GREEN
+patient has fainting,YELLOW
+help with chest pain,RED
+stress,GREEN
+suffering from diarrhea,GREEN
+suffering from vomiting blood,RED
+sunburn,GREEN
+help with stab wound,RED
+severe choking,RED
+patient has sore throat,GREEN
+I have back pain,GREEN
+patient has appendicitis,YELLOW
+headaches,GREEN
+severe headaches,YELLOW
+chronic headaches,YELLOW
