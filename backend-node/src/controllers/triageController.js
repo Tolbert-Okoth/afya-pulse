@@ -1,9 +1,15 @@
 const axios = require('axios');
 const db = require('../config/db');
 
-// 🛡️ FIX: Use environment variable for AI Service URL (Critical for Render/Vercel)
+// 🛡️ Production Config
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:5000/predict';
 const AI_SECRET_KEY = process.env.SERVICE_SECRET_KEY || "default_insecure_key"; 
+
+// --- HELPER: REGEX PARSER ---
+const extractAI = (text, regex) => {
+  const match = text.match(regex);
+  return match && match[1] ? match[1].trim() : null;
+};
 
 // @desc    Submit a new Health Report
 // @route   POST /api/triage
@@ -12,55 +18,39 @@ const submitTriageReport = async (req, res) => {
     const { symptoms, location, age, gender, phone, history } = req.body; 
     const doctorId = req.user ? req.user.id : null; 
 
-    if (!symptoms) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
+    if (!symptoms) return res.status(400).json({ error: 'Symptoms are required' });
 
-    // 1. ASK THE PYTHON AI BRAIN
     let rawAiOutput = null;
-    let triageCategory = 'RED'; // Safety default
-    
-    let aiAnalysis = { 
-      reasoning: 'AI service unavailable – defaulting to RED',
-      possible_conditions: [],
-      advice: 'Seek immediate medical attention.',
-      follow_up_questions: [] 
-    };
+    let triageCategory = 'RED'; 
+    let aiAnalysis = { reasoning: 'AI Fallback', follow_up_questions: [], possible_conditions: [], advice: 'Seek help.' };
 
     try {
       const response = await axios.post(AI_SERVICE_URL, {
         symptoms, age, gender, history: history || [] 
       }, {
         headers: { 'X-Service-Key': AI_SECRET_KEY },
-        timeout: 8000 // Reduced to 8s to stay within USSD gateway limits
+        timeout: 8000 
       });
 
-      if (response.data && response.data.output) {
+      if (response.data?.output) {
         rawAiOutput = response.data.output;
-        const outputUpper = rawAiOutput.toUpperCase();
+        const out = rawAiOutput.toUpperCase();
 
-        // Regex Parsing Logic
-        const extract = (regex) => {
-          const match = rawAiOutput.match(regex);
-          return match && match[1] ? match[1].trim() : null;
-        };
-
-        triageCategory = outputUpper.includes('RISK_LEVEL: GREEN') ? 'GREEN' : 
-                         outputUpper.includes('RISK_LEVEL: YELLOW') ? 'YELLOW' : 'RED';
+        triageCategory = out.includes('RISK_LEVEL: GREEN') ? 'GREEN' : 
+                         out.includes('RISK_LEVEL: YELLOW') ? 'YELLOW' : 'RED';
 
         aiAnalysis = {
           raw_output: rawAiOutput,
-          reasoning: extract(/RATIONALE:\s*(.*)/i) || "Analysis Complete",
-          follow_up_questions: extract(/QUESTION_ASKED:\s*(.*)/i)?.split(',').filter(q => q.toLowerCase() !== 'none') || [],
-          possible_conditions: extract(/POTENTIAL_CAUSES:\s*(.*)/i)?.split(',').map(c => c.trim()) || [],
-          advice: extract(/NEXT_ACTION:\s*(.*)/i) || "Consult a doctor."
+          reasoning: extractAI(rawAiOutput, /RATIONALE:\s*(.*)/i) || "Analysis Complete",
+          follow_up_questions: extractAI(rawAiOutput, /QUESTION_ASKED:\s*(.*)/i)?.split(',').filter(q => q.toLowerCase() !== 'none') || [],
+          possible_conditions: extractAI(rawAiOutput, /POTENTIAL_CAUSES:\s*(.*)/i)?.split(',').map(c => c.trim()) || [],
+          advice: extractAI(rawAiOutput, /NEXT_ACTION:\s*(.*)/i) || "Consult a doctor."
         };
       }
     } catch (aiError) {
-      console.error('⚠️ AI Service unreachable. Using safety fallback.');
+      console.error('⚠️ AI Service unreachable. Fallback triggered.');
     }
 
-    // 2. SAVE TO DB
     const needsReview = triageCategory !== 'GREEN';
     const enrichedSymptoms = `[Age: ${age || '?'}, Sex: ${gender || '?'}] ${symptoms}`;
 
@@ -76,20 +66,17 @@ const submitTriageReport = async (req, res) => {
     ]);
     const newPatient = dbResult.rows[0];
 
-    // 3. 🚨 CLUSTER DETECTION (Outbreak Alert Logic)
+    // Outbreak Detection
     if (triageCategory === 'RED') {
-      const clusterQuery = `
-        SELECT COUNT(*) FROM health_reports 
-        WHERE location = $1 AND triage_category = 'RED' 
-        AND created_at >= NOW() - INTERVAL '1 hour';
-      `;
-      const clusterResult = await db.query(clusterQuery, [location]);
-      if (parseInt(clusterResult.rows[0].count) >= 3) {
-        req.io.emit('OUTBREAK_ALERT', { location, count: clusterResult.rows[0].count });
+      const cluster = await db.query(
+        `SELECT COUNT(*) FROM health_reports WHERE location = $1 AND triage_category = 'RED' AND created_at >= NOW() - INTERVAL '1 hour'`,
+        [location]
+      );
+      if (parseInt(cluster.rows[0].count) >= 3 && req.io) {
+        req.io.emit('OUTBREAK_ALERT', { location, count: cluster.rows[0].count });
       }
     }
 
-    // 4. BROADCAST
     if (req.io) {
       req.io.emit('queue_update', { type: 'ADD', patient: { ...newPatient, ai_analysis: aiAnalysis } });
     }
@@ -102,35 +89,77 @@ const submitTriageReport = async (req, res) => {
   }
 };
 
-// ... keep getTriageStats and getQueue as they were, but ensure they use error handling ...
+// @desc    Get Stats for Dashboard
+// @route   GET /api/triage/stats
+const getTriageStats = async (req, res) => {
+  try {
+    const doctorId = req.user?.id;
+    const statsResult = await db.query(`
+      SELECT triage_category, COUNT(*) as count FROM health_reports 
+      WHERE (is_resolved = FALSE OR is_resolved IS NULL)
+      GROUP BY triage_category;
+    `);
 
+    const doctorResult = await db.query(`SELECT COUNT(*) as active_count FROM users WHERE role = 'doctor'`);
+    
+    res.status(200).json({
+      stats: statsResult.rows,
+      active_doctors: parseInt(doctorResult.rows[0].active_count) || 1
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Stats fetch failed' });
+  }
+};
+
+// @desc    Get Patient Queue
+// @route   GET /api/triage/queue
+const getQueue = async (req, res) => {
+  try {
+    const doctorId = req.user?.id;
+    const result = await db.query(`
+      SELECT * FROM health_reports 
+      WHERE (is_resolved = FALSE OR is_resolved IS NULL) 
+      ORDER BY 
+        CASE 
+          WHEN triage_category = 'RED' THEN 1 
+          WHEN triage_category = 'YELLOW' THEN 2
+          ELSE 3 
+        END, created_at DESC;
+    `);
+
+    const parsedRows = result.rows.map(row => ({
+      ...row,
+      ai_analysis: typeof row.raw_ai_response === 'string' ? JSON.parse(row.raw_ai_response) : row.raw_ai_response
+    }));
+
+    res.status(200).json(parsedRows);
+  } catch (error) {
+    res.status(500).json({ error: 'Queue fetch failed' });
+  }
+};
+
+// @desc    Resolve Case
+// @route   PATCH /api/triage/resolve/:id
 const resolveTriage = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { doctor_final_category } = req.body; 
+  try {
+    const { id } = req.params;
+    const { doctor_final_category } = req.body; 
+    const isTreated = doctor_final_category === 'TREATED';
 
-        const isTreated = doctor_final_category === 'TREATED';
-        const query = isTreated ? 
-            `UPDATE health_reports SET is_resolved = TRUE, is_flagged_for_review = FALSE WHERE report_id = $1 RETURNING *;` :
-            `UPDATE health_reports SET triage_category = $1, is_flagged_for_review = FALSE WHERE report_id = $2 RETURNING *;`;
-        
-        const values = isTreated ? [id] : [doctor_final_category, id];
-        const result = await db.query(query, values);
-        
-        if (result.rows.length === 0) return res.status(404).json({ error: "Report not found" });
+    const query = isTreated ? 
+      `UPDATE health_reports SET is_resolved = TRUE WHERE report_id = $1 RETURNING *` :
+      `UPDATE health_reports SET triage_category = $1 WHERE report_id = $2 RETURNING *`;
 
-        if (req.io) {
-            req.io.emit('queue_update', { 
-                type: isTreated ? 'REMOVE' : 'UPDATE', 
-                id: result.rows[0].report_id,
-                patient: result.rows[0]
-            });
-        }
-
-        res.json({ message: 'Resolved', data: result.rows[0] });
-    } catch (error) {
-        res.status(500).json({ error: 'Error resolving case' });
+    const result = await db.query(query, isTreated ? [id] : [doctor_final_category, id]);
+    
+    if (req.io) {
+      req.io.emit('queue_update', { type: isTreated ? 'REMOVE' : 'UPDATE', id, patient: result.rows[0] });
     }
+
+    res.json({ message: 'Resolved', data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ error: 'Resolve failed' });
+  }
 };
 
 module.exports = { submitTriageReport, getTriageStats, resolveTriage, getQueue };
