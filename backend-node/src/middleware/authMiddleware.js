@@ -12,26 +12,31 @@ const verifyToken = async (req, res, next) => {
     const decodedToken = await admin.auth().verifyIdToken(token);
     const firebaseUid = decodedToken.uid;
 
-    // 👇 FIX 1: Query for 'id', not 'user_id'
+    // 1. Check if user exists in Postgres
     const query = 'SELECT id, email, role FROM users WHERE firebase_uid = $1';
     const result = await pool.query(query, [firebaseUid]);
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User record not found in system.' });
-    }
-
-    // 👇 FIX 2: Save it as 'id' in the request object
+    // 2. Prepare the user object
     req.user = {
-      ...decodedToken,
-      id: result.rows[0].id, // Matches your DB column 'id'
-      role: result.rows[0].role
+      uid: firebaseUid,
+      email: decodedToken.email,
+      name: decodedToken.name,
+      picture: decodedToken.picture,
+      phone_number: decodedToken.phone_number,
+      // If DB record exists, add these. If not, they are undefined (which is fine for /sync)
+      id: result.rows.length > 0 ? result.rows[0].id : null,
+      role: result.rows.length > 0 ? result.rows[0].role : null
     };
 
+    // 3. ⚠️ CRITICAL FIX: Do NOT block if user is missing. 
+    // Let the controller handle it (Sync needs to run for missing users).
     next();
+
   } catch (error) {
     console.error('❌ Auth Verification Failed:', error.message);
     return res.status(403).json({ error: 'Unauthorized', details: error.message });
   }
 };
 
-module.exports = verifyToken;
+// Export as an object to match your routes: const { verifyToken } = ...
+module.exports = { verifyToken };

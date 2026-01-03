@@ -1,31 +1,37 @@
 const db = require('../config/db');
 
+// @desc    Sync Firebase User with Postgres DB
+// @route   POST /api/users/sync
 const syncUser = async (req, res) => {
-  const { uid, email, displayName, photoURL } = req.user; // From Auth Middleware
+  // 1. Destructure correctly from Firebase Middleware
+  //    (Firebase Admin SDK returns 'name' and 'picture', NOT 'displayName')
+  const { uid, email, name, picture, phone_number } = req.user; 
 
   try {
-    // 1. Check if user exists
-    const userCheck = await db.query('SELECT * FROM users WHERE firebase_uid = $1', [uid]);
+    // 2. UPSERT Logic (Insert if new, Update if exists)
+    //    We default role to 'patient' only on insert.
+    const query = `
+      INSERT INTO users (firebase_uid, email, name, photo_url, phone_number, role)
+      VALUES ($1, $2, $3, $4, $5, 'patient')
+      ON CONFLICT (email) 
+      DO UPDATE SET 
+        firebase_uid = EXCLUDED.firebase_uid,
+        name = COALESCE(users.name, EXCLUDED.name),
+        photo_url = COALESCE(users.photo_url, EXCLUDED.photo_url),
+        last_login = NOW()
+      RETURNING *;
+    `;
 
-    if (userCheck.rows.length > 0) {
-      // USER EXISTS: Update login time and return their data (including ROLE)
-      const existingUser = userCheck.rows[0];
-      await db.query('UPDATE users SET last_login = NOW() WHERE firebase_uid = $1', [uid]);
-      
-      console.log(`👤 Sync: Existing User (${existingUser.role})`);
-      return res.status(200).json(existingUser); // <--- Returns { role: 'doctor', ... }
-    } else {
-      // NEW USER: Create them (Default role is 'patient')
-      const newUser = await db.query(
-        `INSERT INTO users (firebase_uid, email, display_name, photo_url, role) 
-         VALUES ($1, $2, $3, $4, 'patient') 
-         RETURNING *`,
-        [uid, email, displayName, photoURL]
-      );
-      
-      console.log(`👤 Sync: New User Created`);
-      return res.status(201).json(newUser.rows[0]);
-    }
+    const values = [uid, email, name || 'Anonymous', picture, phone_number];
+
+    const result = await db.query(query, values);
+    const user = result.rows[0];
+
+    console.log(`👤 Sync Success: ${user.email} (${user.role})`);
+    
+    // 3. Return user data so frontend knows if they are 'doctor' or 'patient'
+    return res.status(200).json(user);
+
   } catch (error) {
     console.error('❌ Sync Error:', error.message);
     res.status(500).json({ error: 'Database Sync Failed' });

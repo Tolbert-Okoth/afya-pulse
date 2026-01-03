@@ -7,15 +7,15 @@ const requireDoctor = async (req, res, next) => {
       if (req.user.role !== 'doctor') {
         return res.status(403).json({ error: 'Access Denied: Doctors Only' });
       }
-      // User is authorized and user_id is already in req.user
+      // User is authorized
       return next(); 
     }
 
     // 2. FALLBACK PATH: If req.user only has Firebase data (uid)
-    // We must fetch the 'user_id' and 'role' from Postgres now.
     const { uid } = req.user; 
 
-    const result = await db.query('SELECT user_id, role FROM users WHERE firebase_uid = $1', [uid]);
+    // ⚠️ FIX 1: Change 'user_id' to 'id' (This matches your Postgres Schema)
+    const result = await db.query('SELECT id, role FROM users WHERE firebase_uid = $1', [uid]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found in records' });
@@ -23,9 +23,9 @@ const requireDoctor = async (req, res, next) => {
 
     const userData = result.rows[0];
 
-    // 3. CRITICAL: Attach the SQL ID to the request object
-    // Your controllers (getQueue, submitReport) depend on this specific line!
-    req.user.user_id = userData.user_id; 
+    // ⚠️ FIX 2: Attach as 'req.user.id' to match what authMiddleware does
+    // If you use 'req.user.user_id', your controllers looking for 'req.user.id' will break.
+    req.user.id = userData.id; 
     req.user.role = userData.role;
 
     // 4. Verify Role
