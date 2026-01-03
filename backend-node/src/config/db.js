@@ -1,36 +1,37 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-// 1. Ensure the URL exists and is trimmed of accidental whitespace
-const rawConnectionString = process.env.DATABASE_URL ? process.env.DATABASE_URL.trim() : "";
+// 1. Clean the string
+const connectionString = process.env.DATABASE_URL ? process.env.DATABASE_URL.trim() : "";
 
 const pool = new Pool({
-  connectionString: rawConnectionString,
+  connectionString: connectionString,
   ssl: {
-    rejectUnauthorized: false, // Required for Neon's self-signed certs
+    rejectUnauthorized: false, 
   },
-  // Higher timeouts to give Neon time to "wake up" from its sleep state
-  connectionTimeoutMillis: 15000, 
+  // Neon works best with these specific settings when using a pooler
+  max: 10,
   idleTimeoutMillis: 30000,
-  max: 10
+  connectionTimeoutMillis: 10000,
 });
 
-// 2. Immediate Diagnostic Test
+// 2. Immediate Diagnostic with detailed logging
 const testConnection = async () => {
   try {
-    console.log("📡 Attempting Neon Handshake...");
-    const res = await pool.query('SELECT NOW()');
-    console.log('✅ Neon Database Connected! Server Time:', res.rows[0].now);
-  } catch (err) {
-    console.error('❌ CRITICAL: Neon Connection Failed.');
-    console.error('📋 Error Code:', err.code);
-    console.error('📋 Error Message:', err.message);
-    
-    if (err.message.includes('getaddrinfo')) {
-      console.error('👉 Tip: Check if your DATABASE_URL hostname is correct.');
+    console.log("📡 Initializing Neon Handshake...");
+    // Use a simple query to wake up the compute instance
+    const res = await pool.query('SELECT 1');
+    if (res) {
+      console.log('✅ NEON CONNECTED: Database is active and responding.');
     }
-    if (err.message.includes('SSL')) {
-      console.error('👉 Tip: Ensure ?sslmode=require is in your connection string.');
+  } catch (err) {
+    console.error('❌ NEON CONNECTION ERROR');
+    console.error('📋 Code:', err.code);
+    console.error('📋 Message:', err.message || "No message returned (Check SSL/URL)");
+    
+    // Check if the URL contains the pooler suffix
+    if (connectionString.includes('-pooler')) {
+      console.log('💡 TIP: You are using a pooled connection. Ensure "Connection Pooling" is ENABLED in the Neon console.');
     }
   }
 };
