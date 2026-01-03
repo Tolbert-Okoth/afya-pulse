@@ -5,3 +5,5 @@ pandas
 joblib
 python-dotenv
 gunicorn
+flask-limiter
+limiter
