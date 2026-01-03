@@ -21,8 +21,14 @@ SERVICE_SECRET_KEY = os.getenv("SERVICE_SECRET_KEY", "default_insecure_key")
 
 app = Flask(__name__)
 
-# CORS: Allow requests from Frontend (3000/5173) and Node Backend (4000)
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://localhost:5173", "http://localhost:4000"]}})
+# CORS: Updated to allow Localhost + Production URLs (Vercel & Render)
+CORS(app, resources={r"/*": {"origins": [
+    "http://localhost:3000", 
+    "http://localhost:5173", 
+    "http://localhost:4000",
+    "https://afya-pulse-dashboard.vercel.app",  # Your Vercel Frontend
+    "https://afya-pulse-backend.onrender.com"   # Your Node Backend
+]}})
 
 # Rate Limiting
 limiter = Limiter(
@@ -168,8 +174,15 @@ NEXT_ACTION: <Instruction in English (or Swahili ONLY if input was Pure Swahili)
         return None
 
 # ─────────────────────────────────────────────
-# 4. API ENDPOINT
+# 4. API ENDPOINTS
 # ─────────────────────────────────────────────
+
+# ✅ NEW: Health Check Route (Fixes Render 404s)
+@app.route("/", methods=["GET", "HEAD"])
+@app.route("/health", methods=["GET", "HEAD"])
+def health_check():
+    return jsonify({"status": "Afya-Pulse AI Service Operational"}), 200
+
 @app.route("/predict", methods=["POST"])
 @require_auth
 @limiter.limit("30 per minute")
@@ -205,5 +218,7 @@ NEXT_ACTION: Evaluate patient immediately.
 # 5. ENTRY POINT
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
-    logger.info("🧠 Afya-Pulse AI Engine running on Port 5000")
-    app.run(port=5000, debug=True, threaded=True)
+    # ✅ UPDATED: Use Render's PORT and bind to 0.0.0.0
+    port = int(os.environ.get("PORT", 10000)) 
+    logger.info(f"🧠 Afya-Pulse AI Engine running on Port {port}")
+    app.run(host="0.0.0.0", port=port, threaded=True)
