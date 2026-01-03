@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware'); 
+// ⚠️ Ensure authMiddleware is imported with { } if it exports an object, or without if it's a single function.
+// Based on your last setup, it was exporting an object: module.exports = { verifyToken }
+const { verifyToken } = require('../middleware/authMiddleware'); 
 
 const { 
     submitTriageReport, 
@@ -9,27 +11,24 @@ const {
     getQueue 
 } = require('../controllers/triageController');
 
-// 🆕 Import the USSD Controller
-const { handleUSSD } = require('../controllers/ussdController');
+// ⚠️ IMPORT CHECK: This must match the file name in src/controllers/ exactly
+const ussdController = require('../controllers/ussdController');
 
-// --- 🌍 PUBLIC ROUTE (USSD) ---
-// This comes from Africa's Talking Gateway, so NO authMiddleware here.
-// Full URL: POST /api/triage/ussd
+// Safety Check: Did we get the function?
+let handleUSSD = ussdController.handleUSSD;
+if (!handleUSSD) {
+    console.error("❌ CRITICAL ERROR: 'handleUSSD' is missing! Check src/controllers/ussdController.js exports.");
+    // Fallback to prevent crash
+    handleUSSD = (req, res) => res.status(500).send("USSD Misconfigured");
+}
+
+// --- PUBLIC ROUTE (No Auth) ---
 router.post('/ussd', handleUSSD);
 
-
-// --- 🔒 PROTECTED DOCTOR ROUTES ---
-
-// 1. Submit Report (Nurse Kiosk / Doctor Input)
-router.post('/', authMiddleware, submitTriageReport);
-
-// 2. Get Stats (Filters by Doctor ID)
-router.get('/stats', authMiddleware, getTriageStats);
-
-// 3. Get Queue (Filters by Doctor ID)
-router.get('/queue', authMiddleware, getQueue);
-
-// 4. Resolve/Treat Patient (Updates specific record)
-router.put('/:id/resolve', authMiddleware, resolveTriage);
+// --- PROTECTED ROUTES (Require Token) ---
+router.post('/', verifyToken, submitTriageReport);
+router.get('/stats', verifyToken, getTriageStats);
+router.get('/queue', verifyToken, getQueue);
+router.put('/:id/resolve', verifyToken, resolveTriage);
 
 module.exports = router;
