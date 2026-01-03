@@ -1,9 +1,13 @@
 import axios from 'axios';
 import { auth } from '../firebaseConfig'; 
 
-// ⚠️ CHANGE THIS: Remove the full URL. Just use the path.
-// The Vite Proxy will automatically send this to http://localhost:5000/api
-const API_BASE_URL = '/api'; 
+// 🛡️ FIX: Dynamic URL Handling
+// If VITE_API_URL is set (in .env), use it. 
+// Otherwise, fallback to your deployed Render Backend.
+const BASE_URL = import.meta.env.VITE_API_URL || "https://afya-pulse-backend.onrender.com";
+
+// Append /api because your backend routes start with it
+const API_BASE_URL = `${BASE_URL}/api`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
