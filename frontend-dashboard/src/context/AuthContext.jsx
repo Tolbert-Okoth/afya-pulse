@@ -13,8 +13,9 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
 
-  // 🛡️ CORRECT BACKEND URL (Node.js on Port 4000)
-  const BACKEND_URL = "http://localhost:4000/api";
+  // 🛡️ FIX: Dynamic Backend URL (No more localhost hardcoding)
+  const BASE_URL = import.meta.env.VITE_API_URL || "https://afya-pulse-backend.onrender.com";
+  const BACKEND_URL = `${BASE_URL.replace(/\/$/, "")}/api`;
 
   // --- LOGIN FUNCTION ---
   const loginWithGoogle = async () => {
@@ -26,7 +27,7 @@ export const AuthProvider = ({ children }) => {
       // 2. Get Token
       const idToken = await firebaseUser.getIdToken();
       
-      // 3. Sync with Backend (Port 4000)
+      // 3. Sync with Backend
       const response = await axios.post(`${BACKEND_URL}/users/sync`, {}, {
         headers: { Authorization: `Bearer ${idToken}` }
       });
@@ -51,7 +52,7 @@ export const AuthProvider = ({ children }) => {
           const idToken = await firebaseUser.getIdToken();
           setToken(idToken);
 
-          // Sync with Backend (Port 4000)
+          // Sync with Backend
           const response = await axios.post(`${BACKEND_URL}/users/sync`, {}, {
             headers: { Authorization: `Bearer ${idToken}` }
           });
@@ -66,7 +67,7 @@ export const AuthProvider = ({ children }) => {
 
         } catch (error) {
           console.error("Auto-Sync failed:", error);
-          // Fallback: Log in without role if backend fails
+          // Fallback: Log in without role if backend fails (prevents total lockout)
           setCurrentUser(firebaseUser);
         }
       } else {
