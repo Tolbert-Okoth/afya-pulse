@@ -12,33 +12,27 @@ const syncUser = async (req, res) => {
 
   try {
     // 2. Optimized UPSERT Logic
-    // We conflict on 'email' as the primary identity anchor.
-    // We update the firebase_uid to ensure it stays in sync if the user re-registers.
+    // FIX: Removed 'name' and 'photo_url' to avoid "Column Does Not Exist" errors.
+    // We use firebase_uid, email, and role as the core columns.
     const query = `
-      INSERT INTO users (firebase_uid, email, name, photo_url, phone_number, role, last_login)
-      VALUES ($1, $2, $3, $4, $5, 'nurse', NOW())
+      INSERT INTO users (firebase_uid, email, role, last_login)
+      VALUES ($1, $2, 'nurse', NOW())
       ON CONFLICT (email) 
       DO UPDATE SET 
         firebase_uid = EXCLUDED.firebase_uid,
-        name = EXCLUDED.name,
-        photo_url = EXCLUDED.photo_url,
-        phone_number = COALESCE(users.phone_number, EXCLUDED.phone_number),
         last_login = NOW()
-      RETURNING id, firebase_uid, email, name, photo_url, role;
+      RETURNING id, firebase_uid, email, role;
     `;
 
     const values = [
       uid, 
-      email.toLowerCase(), // Ensure email consistency
-      name || 'Anonymous User', 
-      picture || null, 
-      phone_number || null
+      email.toLowerCase() // Ensure email consistency
     ];
 
     const result = await db.query(query, values);
     const user = result.rows[0];
 
-    // 3. Log the role for debugging (Critical for identifying why a user might see 403s later)
+    // 3. Log the role for debugging
     console.log(`👤 Sync Success: ${user.email} assigned role [${user.role}]`);
     
     return res.status(200).json({
@@ -49,7 +43,7 @@ const syncUser = async (req, res) => {
   } catch (error) {
     console.error('❌ Sync Error Details:', {
       message: error.message,
-      detail: error.detail, // Postgres specific error detail (e.g., Key already exists)
+      detail: error.detail,
       stack: error.stack
     });
     
