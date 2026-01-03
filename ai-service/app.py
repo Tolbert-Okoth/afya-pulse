@@ -1,7 +1,7 @@
 import os
 import json
 from typing import List
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, abort
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -21,38 +21,32 @@ SERVICE_SECRET_KEY = os.getenv("SERVICE_SECRET_KEY", "default_insecure_key")
 
 app = Flask(__name__)
 
-# ✅ ENHANCED CORS: Allow all subdomains of Vercel and Render for flexibility
-CORS(app, resources={r"/*": {
-    "origins": [
-        "http://localhost:3000", 
-        "http://localhost:5173", 
-        "http://localhost:4000",
-        "https://afya-pulse.vercel.app",
-        "https://afya-pulse-dashboard.vercel.app",
-        "https://afya-pulse-backend.onrender.com"
-    ],
-    "methods": ["GET", "POST", "OPTIONS"],
-    "allow_headers": ["Content-Type", "X-Service-Key"]
-}})
+# CORS: Updated to allow Localhost + Production URLs (Vercel & Render)
+CORS(app, resources={r"/*": {"origins": [
+    "http://localhost:3000", 
+    "http://localhost:5173", 
+    "http://localhost:4000",
+    "https://afya-pulse-dashboard.vercel.app",  # Your Vercel Frontend
+    "https://afya-pulse-backend.onrender.com"   # Your Node Backend
+]}})
 
 # Rate Limiting
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["500 per day", "100 per hour"], # Increased for USSD bursts
+    default_limits=["200 per day", "50 per hour"],
     storage_uri="memory://"
 )
 
+# Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Groq Client Initialization
-client = None
-if not ENABLE_MOCK_MODE:
-    if not GROQ_API_KEY:
-        logger.error("❌ CRITICAL: GROQ_API_KEY missing. Set it in Render Environment Variables.")
-    else:
-        client = Groq(api_key=GROQ_API_KEY)
+if not GROQ_API_KEY and not ENABLE_MOCK_MODE:
+    logger.warning("⚠️ WARNING: GROQ_API_KEY missing. AI engine disabled.")
+    client = None
+else:
+    client = Groq(api_key=GROQ_API_KEY) if not ENABLE_MOCK_MODE else None
 
 # ─────────────────────────────────────────────
 # 2. AUTH DECORATOR
@@ -60,13 +54,9 @@ if not ENABLE_MOCK_MODE:
 def require_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        # Allow health checks to bypass auth for Render's uptime monitor
-        if request.method == 'GET' and request.path in ['/', '/health']:
-            return f(*args, **kwargs)
-            
         auth_key = request.headers.get('X-Service-Key')
         if not auth_key or auth_key != SERVICE_SECRET_KEY:
-            logger.warning(f"🚫 Auth failed: Invalid key from {request.remote_addr}")
+            logger.warning(f"Auth failed: Invalid key from {request.remote_addr}")
             return jsonify({"error": "Auth Verification Failed"}), 401
         return f(*args, **kwargs)
     return decorated
@@ -75,48 +65,96 @@ def require_auth(f):
 # 3. AI CORE LOGIC
 # ─────────────────────────────────────────────
 def get_medical_analysis(symptoms: str, age: str, gender: str, history: List[dict] | None = None):
+    
+    # --- Mock Mode ---
     if ENABLE_MOCK_MODE:
-        return "---\nQUESTION_ASKED: None\nRISK_LEVEL: GREEN\nPOTENTIAL_CAUSES: Mock Cause\nRATIONALE: Mocking enabled.\nNEXT_ACTION: No action.\n---"
+        logger.info("Using mock mode.")
+        return """
+---
+Patient Input: Mock Data
+QUESTION_ASKED: None
+RISK_LEVEL: GREEN
+POTENTIAL_CAUSES: Mock Simulation
+RATIONALE: Mock mode.
+NEXT_ACTION: Consult a doctor.
+---
+        """
 
     if not client:
         return None
 
-    # Turn Counting
+    if len(symptoms) > 2000:
+        symptoms = symptoms[:2000] + " [truncated]"
+
+    # --- Smart History & Turn Counting ---
+    conversation_text = "No previous conversation."
     questions_asked_count = 0
-    turns = []
-    if history:
-        for turn in history[-10:]: # Look at last 10 turns
-            role = turn.get("role")
-            content = turn.get("content", "")
-            if role == "assistant" and "?" in content:
-                questions_asked_count += 1
-            turns.append(f"{'PATIENT' if role == 'user' else 'AI'}: {content}")
 
-    conversation_text = "\n".join(turns) if turns else "No previous history."
+    if history and isinstance(history, list):
+        turns = []
+        for turn in history[:12]: 
+            role = turn.get("role", "user")
+            content = str(turn.get("content", ""))[:800]
+            if content.strip():
+                # Count AI questions to enforce depth
+                if role == "assistant" and "?" in content:
+                    questions_asked_count += 1
+                
+                label = "PREVIOUS PATIENT ANSWER" if role == "user" else "YOUR PREVIOUS QUESTION"
+                turns.append(f"{label}: {content}")
+        if turns:
+            conversation_text = "\n".join(turns)
 
+    # --- THE BRAIN (Sheng-Proof + Depth Enforcer) ---
     system_prompt = f"""
-You are the Afya-Pulse Triage AI. 
-Analyze symptoms and return a structured verdict.
+You are an advanced medical triage AI.
+Your goal: Analyze the conversation and determine the Risk Level (RED, YELLOW, GREEN).
 
-## 🌍 LANGUAGE RULES:
-1. Detect SHENG (Mixed English/Swahili) -> Respond in ENGLISH.
-2. Detect PURE SWAHILI -> Respond in SWAHILI.
-3. HEADERS (RISK_LEVEL, etc.) MUST ALWAYS BE ENGLISH.
+## 🌍 LANGUAGE RULES (CRITICAL):
+You must detect the nuance between "Sheng/Mixed" and "Pure Swahili".
 
-## 🚦 TRIAGE STRATEGY:
-- RED FLAGS (Chest pain, breathing difficulty, severe bleeding, confusion) -> STOP ASKING. RISK_LEVEL: RED.
-- If no red flags and < 3 questions asked -> ASK A FOLLOW-UP QUESTION.
-- If >= 5 questions asked -> GIVE FINAL VERDICT.
+1. **RULE: SHENG = ENGLISH OUTPUT**
+   - IF input is mixed (e.g., "Niko na chest pain", "Manze I feel dizzy", "Kichwa inauma but no fever"), this is **Sheng**.
+   - **ACTION:** Respond in **ENGLISH**.
 
-## 📝 OUTPUT FORMAT:
+2. **RULE: PURE SWAHILI = SWAHILI OUTPUT**
+   - IF input is pure, standard Kiswahili (e.g., "Ninaumwa na kifua na ninashindwa kupumua vizuri").
+   - **ACTION:** Respond in **KISWAHILI**.
+
+3. **RULE: HEADERS MUST BE ENGLISH**
+   - Regardless of the content language, the **HEADERS** (RISK_LEVEL, QUESTION_ASKED, etc.) MUST be in **ENGLISH**.
+
+## 🚦 TRIAGE STRATEGY (DEPTH CONTROL):
+You have currently asked: **{questions_asked_count}/5 questions**.
+
+1. **IMMEDIATE RED:** If Red Flags (Chest Pain, Difficulty Breathing, Uncontrolled Bleeding, Confusion) are present -> **STOP ASKING**. Output RED immediately.
+2. **DEPTH ENFORCER:** If no Red Flags are found and **{questions_asked_count} < 3**:
+   - **YOU MUST ASK ANOTHER QUESTION.** Do not give a Final Verdict yet.
+   - Use SOCRATES (Site, Onset, Character, Radiation, Associations, Time, Exacerbating, Severity).
+3. **MAX LIMIT:** If {questions_asked_count} >= 5, you MUST give a Final Verdict now.
+
+## 🛑 ANTI-LOOP RULES:
+1. **NEVER** repeat a question found in the "Conversation History".
+2. **PRIORITIZE** the "LATEST PATIENT ANSWER". If they updated severity (e.g. 6 -> 8), use the new number.
+
+## 📝 OUTPUT FORMAT (Strict Headers)
+Use this exact format. Do not use markdown bolding (**).
+
 ---
-Patient Input: <Summary>
-QUESTION_ASKED: <Question or 'None'>
-RISK_LEVEL: <RED/YELLOW/GREEN>
-POTENTIAL_CAUSES: <Causes split by commas>
-RATIONALE: <Explanation>
-NEXT_ACTION: <Instruction>
+Patient Input: <Summary of Latest Answer>
+QUESTION_ASKED: <Your Next Question (OR 'None' if Verdict Reached)>
+RISK_LEVEL: <RED / YELLOW / GREEN>
+POTENTIAL_CAUSES: <Cause 1, Cause 2>
+RATIONALE: <Explanation in English (or Swahili ONLY if input was Pure Swahili)>
+NEXT_ACTION: <Instruction in English (or Swahili ONLY if input was Pure Swahili)>
 ---
+
+    === CONTEXT ===
+    Patient: {age} yo {gender}
+    Questions Asked So Far: {questions_asked_count}
+    
+    === CONVERSATION HISTORY (Do Not Repeat These) ===
+    {conversation_text}
     """
 
     try:
@@ -124,30 +162,33 @@ NEXT_ACTION: <Instruction>
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"CONTEXT: Age {age}, Gender {gender}. History: {conversation_text}\nLATEST SYMPTOMS: {symptoms}"}
+                {"role": "user", "content": f"LATEST PATIENT ANSWER: {symptoms}"}
             ],
-            temperature=0.1,
+            temperature=0.1, 
             max_tokens=600
         )
         return completion.choices[0].message.content.strip()
+
     except Exception as e:
-        logger.error(f"Groq Error: {e}")
+        logger.error(f"Groq API Error: {e}")
         return None
 
 # ─────────────────────────────────────────────
 # 4. API ENDPOINTS
 # ─────────────────────────────────────────────
 
-@app.route("/", methods=["GET"])
-@app.route("/health", methods=["GET"])
-def health():
-    return jsonify({"status": "AI Service Online", "mock_mode": ENABLE_MOCK_MODE}), 200
+# ✅ NEW: Health Check Route (Fixes Render 404s)
+@app.route("/", methods=["GET", "HEAD"])
+@app.route("/health", methods=["GET", "HEAD"])
+def health_check():
+    return jsonify({"status": "Afya-Pulse AI Service Operational"}), 200
 
 @app.route("/predict", methods=["POST"])
 @require_auth
+@limiter.limit("30 per minute")
 def predict():
     data = request.get_json(silent=True) or {}
-    symptoms = str(data.get("symptoms", "")).strip()
+    symptoms = str(data.get("symptoms", "")).strip()[:2000]
     
     if not symptoms:
         return jsonify({"error": "Symptoms required"}), 400
@@ -159,12 +200,25 @@ def predict():
         data.get("history", [])
     )
 
+    # Fail-safe
     if not ai_response:
-        return jsonify({"output": "RISK_LEVEL: RED\nRATIONALE: AI Error\nNEXT_ACTION: Immediate Evaluation"}), 503
+        return jsonify({
+            "output": """
+---
+RISK_LEVEL: RED
+RATIONALE: AI System Unavailable. Defaulting to safety.
+NEXT_ACTION: Evaluate patient immediately.
+---
+            """
+        }), 503
 
     return jsonify({"output": ai_response}), 200
 
+# ─────────────────────────────────────────────
+# 5. ENTRY POINT
+# ─────────────────────────────────────────────
 if __name__ == "__main__":
-    # Binding to 0.0.0.0 is mandatory for Render
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    # ✅ UPDATED: Use Render's PORT and bind to 0.0.0.0
+    port = int(os.environ.get("PORT", 10000)) 
+    logger.info(f"🧠 Afya-Pulse AI Engine running on Port {port}")
+    app.run(host="0.0.0.0", port=port, threaded=True)
