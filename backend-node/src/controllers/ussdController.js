@@ -109,12 +109,16 @@ const handleUSSD = async (req, res) => {
         let rawAiOutput = "AI Unavailable";
 
         try {
+             // Added Timeout: Fail fast if AI takes longer than 8s (USSD times out quickly)
              const aiRes = await axios.post(AI_SERVICE_URL, {
                 symptoms: symptoms,
                 age: age,
                 gender: gender,
                 history: [] // USSD has no conversational history
-             }, { headers: { 'X-Service-Key': AI_SECRET_KEY } });
+             }, { 
+                headers: { 'X-Service-Key': AI_SECRET_KEY },
+                timeout: 8000 // 8 seconds timeout
+             });
 
              if (aiRes.data && aiRes.data.output) {
                 rawAiOutput = aiRes.data.output;
