@@ -1,29 +1,30 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-// Create a connection pool with SSL requirements for Production
+// Neon requires the connection string to be parsed correctly
+// Make sure your DATABASE_URL in Render ends with ?sslmode=require
+const connectionString = process.env.DATABASE_URL;
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? {
-    rejectUnauthorized: false // Required for Render/Neon to accept the connection
-  } : false
+  connectionString: connectionString,
+  ssl: {
+    rejectUnauthorized: false, // Required for Neon
+  },
+  // Neon connection optimization
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
 
-// Event listener for successful connection
 pool.on('connect', () => {
-  console.log('✅ Connected to the PostgreSQL Database');
+  console.log('✅ Successful Handshake: Connected to Neon PostgreSQL');
 });
 
-// Event listener for errors
 pool.on('error', (err) => {
-  console.error('❌ Unexpected error on idle client', err);
-  // Optional: Don't exit in production if you want the server to attempt recovery
-  if (process.env.NODE_ENV !== 'production') {
-    process.exit(-1);
-  }
+  console.error('❌ Neon Database Error:', err.message);
 });
 
 module.exports = {
   query: (text, params) => pool.query(text, params),
-  pool // Exporting pool itself in case you need it for specialized tasks
+  pool
 };
