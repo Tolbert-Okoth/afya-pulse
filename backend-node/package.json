@@ -13,6 +13,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
     "africastalking": "^0.7.8",
     "axios": "^1.13.2",
     "cors": "^2.8.5",

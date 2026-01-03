@@ -1,44 +1,38 @@
 require('dotenv').config();
-const { Pool } = require('pg');
+const { neon } = require('@neondatabase/serverless');
 
 // 1. Clean the string
 const connectionString = process.env.DATABASE_URL ? process.env.DATABASE_URL.trim() : "";
 
-const pool = new Pool({
-  connectionString: connectionString,
-  ssl: {
-    rejectUnauthorized: false, 
-  },
-  // Neon works best with these specific settings when using a pooler
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
-});
+// 2. Initialize the Neon HTTP client (Bypasses traditional TCP/Pooler issues)
+const sql = neon(connectionString);
 
-// 2. Immediate Diagnostic with detailed logging
+console.log("📡 Neon HTTP Client Initialized (Port 443)");
+
+// 3. Startup Handshake Test
 const testConnection = async () => {
   try {
-    console.log("📡 Initializing Neon Handshake...");
-    // Use a simple query to wake up the compute instance
-    const res = await pool.query('SELECT 1');
-    if (res) {
-      console.log('✅ NEON CONNECTED: Database is active and responding.');
-    }
+    const result = await sql`SELECT NOW()`;
+    console.log('✅ NEON HTTP CONNECTED: Server Time:', result[0].now);
   } catch (err) {
-    console.error('❌ NEON CONNECTION ERROR');
-    console.error('📋 Code:', err.code);
-    console.error('📋 Message:', err.message || "No message returned (Check SSL/URL)");
-    
-    // Check if the URL contains the pooler suffix
-    if (connectionString.includes('-pooler')) {
-      console.log('💡 TIP: You are using a pooled connection. Ensure "Connection Pooling" is ENABLED in the Neon console.');
-    }
+    console.error('❌ NEON HTTP CONNECTION FAILED');
+    console.error('📋 Message:', err.message);
+    console.error('📋 Hint: Check if your DATABASE_URL is the pooled or direct string.');
   }
 };
 
 testConnection();
 
+// 4. Export a wrapper to keep your existing code working (query syntax)
 module.exports = {
-  query: (text, params) => pool.query(text, params),
-  pool
+  query: async (text, params) => {
+    // The Neon HTTP driver uses a tagged template or a specific function call.
+    // For compatibility with your existing controllers:
+    try {
+        const result = await sql(text, params);
+        return { rows: result };
+    } catch (error) {
+        throw error;
+    }
+  }
 };
