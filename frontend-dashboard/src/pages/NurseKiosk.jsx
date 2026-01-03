@@ -24,8 +24,11 @@ const NurseKiosk = () => {
   const [interimTranscript, setInterimTranscript] = useState(''); 
   const recognitionRef = useRef(null);
 
-  // 🛡️ CORRECT BACKEND URL (Port 4000)
-  const BACKEND_URL = "http://localhost:4000/api";
+  // 🛡️ DYNAMIC URL CONFIGURATION
+  // 1. Base URL for Socket.io (No /api)
+  const BASE_URL = import.meta.env.VITE_API_URL || "https://afya-pulse-backend.onrender.com";
+  // 2. URL for Axios Requests (With /api)
+  const BACKEND_URL = `${BASE_URL}/api`;
 
   // 📍 LOCATIONS
   const LOCATIONS = [
@@ -56,16 +59,16 @@ const NurseKiosk = () => {
 
     fetchStatus();
 
-    // 🛡️ Socket Connects to Port 4000
-    const socket = io('http://localhost:4000');
-    socket.on('connect', () => console.log("🟢 Nurse Kiosk Connected (Port 4000)"));
+    // 🛡️ Socket Connects to Dynamic BASE_URL
+    const socket = io(BASE_URL);
+    socket.on('connect', () => console.log(`🟢 Nurse Kiosk Connected: ${BASE_URL}`));
     
     socket.on('queue_update', () => {
       fetchStatus(); 
     });
 
     return () => socket.disconnect();
-  }, [token]);
+  }, [token, BASE_URL]);
 
   const getStatusColor = (status) => {
     switch(status) {
@@ -184,7 +187,7 @@ const NurseKiosk = () => {
         currentHistory.push({ role: 'user', content: formData.symptoms });
       }
 
-      // 🛡️ API Call to Port 4000 with Auth Header
+      // 🛡️ API Call with Dynamic BACKEND_URL
       const res = await axios.post(`${BACKEND_URL}/triage`, { 
           ...formData, 
           symptoms: currentInput,
