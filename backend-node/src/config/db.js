@@ -1,24 +1,37 @@
 require('dotenv').config();
-const { neon } = require('@neondatabase/serverless');
+const { Pool, Client } = require('pg');
+const ws = require('ws');
+const { neonConfig } = require('@neondatabase/serverless');
 
-// Clean and validate the URL
+// 💡 This is the magic line that fixes "fetch failed" and "ECONNREFUSED"
+// It routes the standard Postgres traffic through a WebSocket
+neonConfig.webSocketConstructor = ws;
+
 const connectionString = process.env.DATABASE_URL ? process.env.DATABASE_URL.trim() : "";
 
-// Initialize Neon HTTP
-const sql = neon(connectionString);
+const pool = new Pool({
+  connectionString: connectionString,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
 
-console.log("📡 Neon HTTP: Connecting to Direct Instance (Non-Pooler)");
+console.log("📡 Neon Connection: Attempting WebSocket Tunnel...");
 
 const testConnection = async () => {
   try {
-    const result = await sql`SELECT NOW() as time`;
-    console.log('✅ NEON SUCCESS: Connected to ep-wandering-union! Time:', result[0].time);
+    const client = await pool.connect();
+    const res = await client.query('SELECT NOW()');
+    console.log('✅ NEON CONNECTED: WebSocket Handshake Successful!');
+    console.log('🕒 Server Time:', res.rows[0].now);
+    client.release();
   } catch (err) {
-    console.error('❌ NEON HTTP FAILED');
+    console.error('❌ NEON CONNECTION FAILED');
+    console.error('📋 Code:', err.code || 'N/A');
     console.error('📋 Message:', err.message);
     
-    if (connectionString.includes('-pooler')) {
-      console.log('🚨 ERROR: You are still using the POOLER URL. Switch to the DIRECT URL in Render.');
+    if (connectionString.includes('pooler')) {
+       console.log('💡 Tip: Try removing "-pooler" from your DATABASE_URL in Render.');
     }
   }
 };
@@ -26,14 +39,6 @@ const testConnection = async () => {
 testConnection();
 
 module.exports = {
-  query: async (text, params) => {
-    try {
-      // Compatibility wrapper for your existing code
-      const result = await sql(text, params);
-      return { rows: result };
-    } catch (error) {
-      console.error('❌ DB Query Error:', error.message);
-      throw error;
-    }
-  }
+  query: (text, params) => pool.query(text, params),
+  pool
 };
