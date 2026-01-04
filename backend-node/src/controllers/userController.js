@@ -3,15 +3,15 @@ const db = require('../config/db');
 // @desc    Sync Firebase User with Postgres DB
 // @route   POST /api/users/sync
 const syncUser = async (req, res) => {
-  // Extract from Firebase token (verifyToken middleware)
   const { uid, email, name, picture, phone_number } = req.user;
 
-  // 🔐 UID is mandatory, email is optional
-  if (!uid) {
-    return res.status(400).json({ error: 'Firebase UID is required' });
+  if (!uid || !email) {
+    return res.status(400).json({ error: 'UID and Email are required for sync' });
   }
 
   try {
+    // 💡 FIX: We switch the ON CONFLICT target to (email) 
+    // because that is the constraint being violated in your logs.
     const query = `
       INSERT INTO users (
         firebase_uid,
@@ -23,19 +23,18 @@ const syncUser = async (req, res) => {
         last_login
       )
       VALUES ($1, $2, 'nurse', $3, $4, $5, NOW())
-      ON CONFLICT (firebase_uid)
+      ON CONFLICT (email)
       DO UPDATE SET
-        email = EXCLUDED.email,
-        display_name = EXCLUDED.display_name,
-        photo_url = EXCLUDED.photo_url,
-        phone_number = EXCLUDED.phone_number,
+        firebase_uid = EXCLUDED.firebase_uid,
+        display_name = COALESCE(EXCLUDED.display_name, users.display_name),
+        photo_url = COALESCE(EXCLUDED.photo_url, users.photo_url),
         last_login = NOW()
       RETURNING id, firebase_uid, email, role;
     `;
 
     const values = [
       uid,
-      email ? email.toLowerCase() : null,
+      email.toLowerCase(),
       name || null,
       picture || null,
       phone_number || null
@@ -44,7 +43,7 @@ const syncUser = async (req, res) => {
     const result = await db.query(query, values);
     const user = result.rows[0];
 
-    console.log(`👤 Sync Success: UID=${user.firebase_uid}, role=[${user.role}]`);
+    console.log(`👤 Sync Success: ${user.email} (Role: ${user.role})`);
 
     return res.status(200).json({
       message: 'User synced successfully',
@@ -54,8 +53,7 @@ const syncUser = async (req, res) => {
   } catch (error) {
     console.error('❌ Sync Error Details:', {
       message: error.message,
-      detail: error.detail,
-      stack: error.stack
+      detail: error.detail
     });
 
     return res.status(500).json({
