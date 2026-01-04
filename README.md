@@ -4,17 +4,6 @@
 **Afya-Pulse** is a full-stack, real-time medical surveillance and AI-driven triage platform designed specifically for the **Kenyan healthcare context**.  
 It leverages advanced AI to analyze patient symptoms (including **Sheng** and **Swahili**), categorize medical urgency, and provide **real-time visualization** for medical command centers.
 
----
-
-## 📑 Table of Contents
-- [Core Features](#-core-features)
-- [Architecture](#-architecture)
-- [Screenshots](#-screenshots)
-- [Tech Stack](#-tech-stack)
-- [Installation & Setup](#-installation--setup)
-- [Security](#-security)
-
----
 
 ## ✨ Core Features
 
