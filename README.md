@@ -80,6 +80,12 @@ Afya-Pulse follows a **microservices-inspired architecture** for scalability and
 ## 📸 Screenshots
 
 <img width="1855" height="804" alt="Screenshot 2026-01-04 125019" src="https://github.com/user-attachments/assets/2a440d25-95bb-4558-9d41-f97fa8c41ea5" />
+<img width="1833" height="816" alt="Screenshot 2026-01-04 125029" src="https://github.com/user-attachments/assets/bb0db886-4048-4a81-92ad-e2f9ddd2da66" />
+<img width="1913" height="839" alt="Screenshot 2026-01-04 125049" src="https://github.com/user-attachments/assets/34eaf446-881e-418e-9534-8e5bca5e5022" />
+<img width="1919" height="701" alt="Screenshot 2026-01-04 125102" src="https://github.com/user-attachments/assets/dae38cbb-c22c-4014-bf56-cc37938e3a5a" />
+
+
+
 
 
 
