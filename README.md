@@ -116,3 +116,20 @@ Afya-Pulse follows a **microservices-inspired architecture** for scalability and
 GROQ_API_KEY=your_key_here
 SERVICE_SECRET_KEY=your_random_string_key
 PORT=10000
+
+
+🛡 Security
+
+Service-to-Service Authentication
+Internal communication between Backend and AI Engine secured via a shared SERVICE_SECRET_KEY.
+
+Token Refreshing
+Uses Firebase onIdTokenChanged to prevent session expiration during long clinical shifts.
+
+CORS Protection
+Strict origin filtering to prevent unauthorized API access.'
+
+📍 Built for Kenya 🇰🇪
+
+Afya-Pulse is designed with local language, infrastructure, and public-health needs in mind—bridging AI and healthcare for faster, smarter medical response.
+
