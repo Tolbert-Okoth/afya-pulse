@@ -96,8 +96,13 @@ const Login = () => {
               <span className="logo-text">Afya-Pulse</span>
             </div>
 
-            {/* 👇 DIRECT DOWNLOAD LINK */}
-            <a href="/manual-v1.2.pdf" download className="manual-link-compact" title="Download User Manual">
+            {/* 👇 UPDATED DIRECT DOWNLOAD LINK */}
+            <a 
+              href="/manual-v1.3.pdf" 
+              download="Afya-Pulse_User_Manual_v1.3.pdf" 
+              className="manual-link-compact" 
+              title="Download User Manual"
+            >
               <FileText size={16} />
               <span>User Guide</span>
             </a>
@@ -108,7 +113,6 @@ const Login = () => {
             <p>Please sign in to your account</p>
           </div>
 
-          {/* ⚠️ Error Alert */}
           {error && (
             <div className="alert alert-error">
               <AlertCircle size={16} />
@@ -116,7 +120,6 @@ const Login = () => {
             </div>
           )}
 
-          {/* 🟢 Success Alert */}
           {resetSent && showForgot && (
             <div className="alert alert-success">
               <CheckCircle size={16} />
@@ -124,7 +127,6 @@ const Login = () => {
             </div>
           )}
 
-          {/* 📝 FORM LOGIC */}
           {!showForgot ? (
             <>
               <form onSubmit={handleEmailLogin}>
@@ -179,8 +181,6 @@ const Login = () => {
               </button>
             </>
           ) : (
-            
-            /* 🔄 FORGOT PASSWORD FORM */
             <form onSubmit={handleResetPassword}>
               <div className="form-group">
                 <p className="forgot-instruction">
@@ -212,7 +212,7 @@ const Login = () => {
           )}
           
           <div className="login-footer">
-            <small>&copy; 2025 Afya-Pulse Triage System</small>
+            <small>&copy; 2026 Afya-Pulse Triage System</small>
           </div>
         </div>
       </div>
@@ -249,7 +249,6 @@ const Login = () => {
           </div>
         </div>
         
-        {/* Background Patterns */}
         <div className="bg-pattern-circle"></div>
         <div className="bg-pattern-circle-2"></div>
       </div>
