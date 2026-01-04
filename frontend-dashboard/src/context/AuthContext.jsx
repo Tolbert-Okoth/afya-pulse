@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, googleProvider } from "../firebaseConfig";
-import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+// 🔄 Import onIdTokenChanged for automatic refresh handling
+import { onIdTokenChanged, signInWithPopup, signOut } from "firebase/auth";
 import axios from "axios"; 
 
 const AuthContext = createContext();
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within an AuthProvider");
@@ -17,8 +17,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
 
-  // 🛡️ FIX: Slash-Proofing the URL
-  // This removes any trailing slashes from the Env Var so we don't get //api
   const RAW_URL = import.meta.env.VITE_API_URL || "https://afya-pulse.onrender.com";
   const BASE_URL = RAW_URL.replace(/\/+$/, ""); 
   const BACKEND_URL = `${BASE_URL}/api`;
@@ -42,18 +40,22 @@ export const AuthProvider = ({ children }) => {
   const logout = () => signOut(auth);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    // 🛡️ CHANGED: Use onIdTokenChanged to keep the token fresh
+    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          const idToken = await firebaseUser.getIdToken(true);
+          // Force a background refresh to ensure we have the latest claims
+          const idToken = await firebaseUser.getIdToken();
           setToken(idToken);
+          
+          // Store token in localStorage for persistence across refreshes
+          localStorage.setItem("token", idToken);
 
-          // Trigger Sync
+          // Trigger Sync to Backend
           const response = await axios.post(`${BACKEND_URL}/users/sync`, {}, {
             headers: { Authorization: `Bearer ${idToken}` }
           });
 
-          // ✅ Mapping: Match the { message, user: {...} } backend structure
           const dbUser = response.data.user; 
           
           setCurrentUser({
@@ -64,13 +66,13 @@ export const AuthProvider = ({ children }) => {
 
           console.log(`✅ Pulse Sync: ${firebaseUser.email} verified as [${dbUser.role}]`);
         } catch (error) {
-          console.error("Auto-Sync Error:", error.response?.data || error.message);
-          // Allow login but without DB role (Kiosk will show restricted access)
+          console.error("Token/Sync Error:", error.response?.data || error.message);
           setCurrentUser(firebaseUser);
         }
       } else {
         setCurrentUser(null);
         setToken(null);
+        localStorage.removeItem("token");
       }
       setLoading(false);
     });
