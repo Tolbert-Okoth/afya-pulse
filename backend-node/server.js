@@ -22,10 +22,8 @@ const ALLOWED_ORIGINS = [
 ];
 
 // 1. UNIFIED CORS CONFIGURATION
-// This function handles both standard domains and dynamic Vercel branch/preview URLs
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
         
         const isAllowed = ALLOWED_ORIGINS.indexOf(origin) !== -1;
@@ -40,15 +38,15 @@ const corsOptions = {
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"]
+    allowedHeaders: ["Content-Type", "Authorization", "X-Service-Key"]
 };
 
 // Apply CORS to Express
 app.use(cors(corsOptions));
 
-// 2. Initialize Socket.io with the SAME CORS settings
+// 2. Initialize Socket.io with Shared CORS
 const io = new Server(server, {
-    cors: corsOptions, // Shared configuration fixes the handshake error
+    cors: corsOptions,
     transports: ['websocket', 'polling'],
     allowEIO3: true 
 });
@@ -62,14 +60,24 @@ app.use((req, res, next) => {
     next();
 });
 
-// Attach 'io' to every request so controllers can emit events
+// Attach 'io' to every request
 app.use((req, res, next) => {
     req.io = io; 
     next();
 });
 
-// Health Check
-app.get('/', (req, res) => res.status(200).send('Afya-Pulse Backend is Online 🟢'));
+// 🏥 HEALTH CHECK ENDPOINT
+// Resolves the 404 error in UptimeRobot
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'Afya-Pulse Backend is Online 🟢', 
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
+});
+
+// Root route fallback
+app.get('/', (req, res) => res.status(200).send('Afya-Pulse Gateway Active'));
 
 // 4. Routes
 app.use('/api/triage', triageRoutes);
@@ -92,8 +100,9 @@ io.on('connection', (socket) => {
     });
 });
 
+// Port Management for Render
 const PORT = process.env.PORT || 4000;
 
-server.listen(PORT, () => {
-    console.log(`✅ Server running on port ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Afya-Pulse Gateway running on port ${PORT}`);
 });
