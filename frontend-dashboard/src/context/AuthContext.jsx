@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, googleProvider } from "../firebaseConfig";
-// 🔄 Import onIdTokenChanged for automatic refresh handling
 import { onIdTokenChanged, signInWithPopup, signOut } from "firebase/auth";
 import axios from "axios"; 
 
 const AuthContext = createContext();
 
+// 🛡️ Added ESLint ignore comment for Fast Refresh compatibility
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within an AuthProvider");
@@ -40,18 +41,13 @@ export const AuthProvider = ({ children }) => {
   const logout = () => signOut(auth);
 
   useEffect(() => {
-    // 🛡️ CHANGED: Use onIdTokenChanged to keep the token fresh
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // Force a background refresh to ensure we have the latest claims
           const idToken = await firebaseUser.getIdToken();
           setToken(idToken);
-          
-          // Store token in localStorage for persistence across refreshes
           localStorage.setItem("token", idToken);
 
-          // Trigger Sync to Backend
           const response = await axios.post(`${BACKEND_URL}/users/sync`, {}, {
             headers: { Authorization: `Bearer ${idToken}` }
           });

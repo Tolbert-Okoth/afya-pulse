@@ -25,9 +25,7 @@ const NurseKiosk = () => {
   const recognitionRef = useRef(null);
 
   // 🛡️ DYNAMIC URL CONFIGURATION
-  // 1. Base URL for Socket.io (No /api)
   const BASE_URL = import.meta.env.VITE_API_URL || "https://afya-pulse-backend.onrender.com";
-  // 2. URL for Axios Requests (With /api)
   const BACKEND_URL = `${BASE_URL}/api`;
 
   // 📍 LOCATIONS
@@ -68,7 +66,8 @@ const NurseKiosk = () => {
     });
 
     return () => socket.disconnect();
-  }, [token, BASE_URL]);
+    // ✅ Added BACKEND_URL to dependencies to satisfy ESLint
+  }, [token, BASE_URL, BACKEND_URL]);
 
   const getStatusColor = (status) => {
     switch(status) {
@@ -187,7 +186,6 @@ const NurseKiosk = () => {
         currentHistory.push({ role: 'user', content: formData.symptoms });
       }
 
-      // 🛡️ API Call with Dynamic BACKEND_URL
       const res = await axios.post(`${BACKEND_URL}/triage`, { 
           ...formData, 
           symptoms: currentInput,
@@ -224,11 +222,7 @@ const NurseKiosk = () => {
       </div>
 
       <div className="split-layout">
-        
-        {/* LEFT PANEL */}
         <div className="left-panel">
-          
-          {/* 1. INITIAL FORM */}
           {!result && (
             <section className="card">
                <h3 className="flex items-center gap-2"><Thermometer className="text-blue-500"/> Patient Intake</h3>
@@ -237,8 +231,6 @@ const NurseKiosk = () => {
               </p>
               
               <form onSubmit={(e) => handleSubmit(e, false)}>
-                
-                {/* Age & Gender */}
                 <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
                   <div style={{ flex: 1 }}>
                     <label>Patient Age</label>
@@ -265,7 +257,6 @@ const NurseKiosk = () => {
                   </div>
                 </div>
 
-                {/* PHONE NUMBER INPUT */}
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <Phone size={16} /> Patient Phone Number
@@ -287,7 +278,6 @@ const NurseKiosk = () => {
                   />
                 </div>
 
-                {/* Location */}
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <MapPin size={16} /> Location (County)
@@ -349,7 +339,6 @@ const NurseKiosk = () => {
             </section>
           )}
 
-          {/* 2. RESULT CARD */}
           {result && (
              <section className={`card border-${result.data.triage_category}`}>
                 <div className="result-header">
@@ -422,7 +411,6 @@ const NurseKiosk = () => {
           )}
         </div>
 
-        {/* RIGHT PANEL - STATUS */}
         <div className="right-panel" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="card" style={{ padding: '1.5rem' }}>
              <h3 className="flex items-center gap-2"><Info size={18} /> Triage Guidelines</h3>
@@ -460,7 +448,6 @@ const NurseKiosk = () => {
             )}
           </div>
         </div>
-
       </div>
     </div>
   );
