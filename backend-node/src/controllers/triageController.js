@@ -2,145 +2,129 @@ const axios = require('axios');
 const db = require('../config/db');
 
 // 🛡️ CONFIG: Now using the Public URL as the primary connection method
-// On Render, set AI_SERVICE_URL to: https://afya-pulse-ai.onrender.com
 const AI_BASE_URL = process.env.AI_SERVICE_URL || 'http://localhost:5000';
 const AI_SECRET_KEY = process.env.SERVICE_SECRET_KEY || "default_insecure_key"; 
 
-// @desc    Submit a new Health Report
+// @desc    Submit or Update a Health Report (Session-Based Logic)
 // @route   POST /api/triage
 const submitTriageReport = async (req, res) => {
   try {
     const { symptoms, location, age, gender, phone, history } = req.body; 
-    
-    console.log("---------------------------------");
-    console.log("📡 Triage Submission - Phone:", phone); 
-    console.log("---------------------------------");
-
     const doctorId = req.user ? req.user.id : null; 
 
-    if (!symptoms) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!symptoms || !phone) {
+      return res.status(400).json({ error: 'Missing symptoms or phone number' });
     }
 
-    // 1. ASK THE PYTHON AI BRAIN
+    // 1. CHECK FOR EXISTING ACTIVE SESSION (Prevents duplication in queue)
+    const existingSession = await db.query(
+      `SELECT report_id, symptoms FROM health_reports 
+       WHERE patient_phone = $1 AND (is_resolved = FALSE OR is_resolved IS NULL) 
+       LIMIT 1`,
+      [phone]
+    );
+
+    // 2. ASK THE PYTHON AI BRAIN
     let rawAiOutput = null;
     let triageCategory = 'RED'; // Safety default
-    
     let aiAnalysis = { 
-      reasoning: 'AI service unavailable – defaulting to RED for patient safety',
-      possible_conditions: ['Unknown – seek immediate evaluation'],
-      advice: 'Seek immediate medical attention. Call 999 immediately.',
+      reasoning: 'AI service unavailable – defaulting to RED',
+      possible_conditions: ['Unknown'],
+      advice: 'Seek immediate medical attention.',
       follow_up_questions: [] 
     };
 
     try {
-      // Construct the full URL. Using Public URL means we do NOT need port :10000
       const fullAiUrl = `${AI_BASE_URL}/predict`.replace(/([^:]\/)\/+/g, "$1");
-      console.log(`🤖 Attempting Public AI Handshake at: ${fullAiUrl}`);
-
       const response = await axios.post(fullAiUrl, {
-        symptoms: symptoms,
-        age: age || "Unknown",
-        gender: gender || "Unknown",
-        history: history || [] 
+        symptoms, age: age || "Unknown", gender: gender || "Unknown", history: history || [] 
       }, {
         headers: { 'X-Service-Key': AI_SECRET_KEY },
-        // 🕒 INCREASED TIMEOUT: 60 seconds to allow the Free Tier AI to wake up
-        timeout: 60000 
+        timeout: 60000 // 60s for Free Tier cold starts
       });
 
       if (response.data && response.data.output) {
-        console.log("✅ AI Response Success");
         rawAiOutput = response.data.output;
 
         // 🧠 PARSING LOGIC
         const outputUpper = rawAiOutput.toUpperCase();
-        if (outputUpper.includes('RISK_LEVEL: GREEN')) {
-          triageCategory = 'GREEN';
-        } else if (outputUpper.includes('RISK_LEVEL: YELLOW')) {
-          triageCategory = 'YELLOW';
-        } else {
-          triageCategory = 'RED'; 
-        }
+        if (outputUpper.includes('RISK_LEVEL: GREEN')) triageCategory = 'GREEN';
+        else if (outputUpper.includes('RISK_LEVEL: YELLOW')) triageCategory = 'YELLOW';
+        else triageCategory = 'RED';
 
         const questions = [];
         const questionMatch = rawAiOutput.match(/QUESTION_ASKED:\s*(.*)/i);
-        if (questionMatch && questionMatch[1]) {
+        if (questionMatch?.[1]) {
             const qText = questionMatch[1].trim();
-            if (qText.length > 4 && !qText.toLowerCase().includes('none')) {
-                questions.push(qText);
-            }
+            if (qText.length > 4 && !qText.toLowerCase().includes('none')) questions.push(qText);
         }
 
         let conditions = [];
         const conditionsMatch = rawAiOutput.match(/POTENTIAL_CAUSES:\s*(.*)/i);
-        if (conditionsMatch && conditionsMatch[1]) {
-            conditions = conditionsMatch[1].split(',')
-                .map(c => c.trim())
-                .filter(c => c.length > 0 && !c.toLowerCase().includes('none'));
+        if (conditionsMatch?.[1]) {
+            conditions = conditionsMatch[1].split(',').map(c => c.trim()).filter(c => c.length > 0 && !c.toLowerCase().includes('none'));
         }
 
         const reasoningMatch = rawAiOutput.match(/RATIONALE:\s*(.*)/i);
-        const reasoning = reasoningMatch ? reasoningMatch[1].trim() : "AI Analysis Complete";
-
         const actionMatch = rawAiOutput.match(/NEXT_ACTION:\s*(.*)/i);
-        const advice = actionMatch ? actionMatch[1].trim() : "Consult a doctor.";
 
         aiAnalysis = { 
            raw_output: rawAiOutput,
-           reasoning: reasoning,
+           reasoning: reasoningMatch ? reasoningMatch[1].trim() : "Analysis Complete",
            follow_up_questions: questions,
            possible_conditions: conditions, 
-           advice: advice
+           advice: actionMatch ? actionMatch[1].trim() : "Consult Doctor"
         };
       }
     } catch (aiError) {
-      console.error('❌ AI CONNECTION FAILED:', aiError.message);
-      if (aiError.code === 'ECONNABORTED') {
-          console.error("💡 HINT: AI Service timed out. It is likely spinning up.");
-      } else if (aiError.response && aiError.response.status === 401) {
-          console.error("💡 HINT: Auth Verification Failed. Check SERVICE_SECRET_KEY.");
-      }
+      console.error('❌ AI Handshake Error:', aiError.message);
     }
 
-    // 2. HUMAN INTEGRATION LOGIC
+    // 3. DATABASE UPSERT LOGIC
     const needsReview = (triageCategory === 'YELLOW' || triageCategory === 'RED');
+    let finalPatient;
+    let actionType = 'ADD';
 
-    // 3. SAVE TO DB
-    const enrichedSymptoms = `[Age: ${age || '?'}, Sex: ${gender || '?'}] ${symptoms}`;
+    if (existingSession.rows.length > 0) {
+      // 🔄 UPDATE: Append follow-up symptoms to the original report
+      const reportId = existingSession.rows[0].report_id;
+      const updatedSymptoms = `${existingSession.rows[0].symptoms} | Follow-up: ${symptoms}`;
+      actionType = 'UPDATE';
 
-    const query = `
-      INSERT INTO health_reports 
-      (symptoms, triage_category, location, is_flagged_for_review, doctor_id, patient_phone, raw_ai_response)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING report_id, triage_category, is_flagged_for_review, created_at, symptoms, location, doctor_id, patient_phone;
-    `;
-    
-    const values = [
-      enrichedSymptoms,
-      triageCategory,     
-      location,
-      needsReview,
-      doctorId,
-      phone,
-      JSON.stringify(aiAnalysis) 
-    ];
+      const updateQuery = `
+        UPDATE health_reports 
+        SET symptoms = $1, triage_category = $2, raw_ai_response = $3, is_flagged_for_review = $4
+        WHERE report_id = $5
+        RETURNING *;
+      `;
+      const updateResult = await db.query(updateQuery, [updatedSymptoms, triageCategory, JSON.stringify(aiAnalysis), needsReview, reportId]);
+      finalPatient = updateResult.rows[0];
+    } else {
+      // ✨ INSERT: Create brand new patient report
+      const enrichedSymptoms = `[Age: ${age || '?'}, Sex: ${gender || '?'}] ${symptoms}`;
+      const insertQuery = `
+        INSERT INTO health_reports 
+        (symptoms, triage_category, location, is_flagged_for_review, doctor_id, patient_phone, raw_ai_response)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *;
+      `;
+      const insertResult = await db.query(insertQuery, [enrichedSymptoms, triageCategory, location, needsReview, doctorId, phone, JSON.stringify(aiAnalysis)]);
+      finalPatient = insertResult.rows[0];
+    }
 
-    const dbResult = await db.query(query, values);
-    const newPatient = dbResult.rows[0];
-
-    // 4. BROADCAST
+    // 4. BROADCAST TO DOCTORS
     if (req.io) {
       req.io.emit('queue_update', { 
-        type: 'ADD', 
-        patient: { ...newPatient, ai_analysis: aiAnalysis } 
+        type: actionType, 
+        id: finalPatient.report_id,
+        patient: { ...finalPatient, ai_analysis: aiAnalysis } 
       });
-      console.log(`Emitted New Patient Event (Category: ${triageCategory})`);
+      console.log(`📡 Broadcast ${actionType} for Phone: ${phone}`);
     }
 
     res.status(201).json({
       message: needsReview ? 'Flagged for Review' : 'Triage Complete',
-      data: newPatient,
+      data: finalPatient,
       ai_analysis: aiAnalysis 
     });
 
@@ -168,26 +152,22 @@ const getTriageStats = async (req, res) => {
     const stats = statsResult.rows;
     const activeDoctors = parseInt(doctorResult.rows[0].active_count) || 1;
 
-    let redCount = 0;
-    let totalCount = 0;
+    let redCount = 0, totalCount = 0;
     stats.forEach(s => {
       const count = parseInt(s.count);
       totalCount += count;
       if (s.triage_category === 'RED') redCount += count;
     });
 
-    let systemStatus = 'NORMAL';
-    if (redCount >= 3) systemStatus = 'CRITICAL';
-    else if (totalCount > 15 || redCount >= 1) systemStatus = 'HIGH';
+    let systemStatus = (redCount >= 3) ? 'CRITICAL' : (totalCount > 15 || redCount >= 1) ? 'HIGH' : 'NORMAL';
 
     res.status(200).json({ stats, system_status: systemStatus, active_doctors: activeDoctors });
   } catch (error) {
-    console.error('Stats Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
 
-// @desc    Get Queue (My Patients + All Criticals)
+// @desc    Get Queue (Filtered by Doctor or Criticality)
 const getQueue = async (req, res) => {
   try {
     const doctorId = req.user.id;
@@ -208,18 +188,17 @@ const getQueue = async (req, res) => {
         try {
             aiData = typeof row.raw_ai_response === 'string' ? JSON.parse(row.raw_ai_response) : row.raw_ai_response || {};
         } catch (e) {
-            aiData = { reasoning: "Data Parsing Error", advice: "Consult Doctor" };
+            aiData = { reasoning: "Parsing error" };
         }
         return { ...row, ai_analysis: aiData };
     });
     res.status(200).json(parsedRows);
   } catch (error) {
-    console.error('Queue Error:', error);
     res.status(500).json({ error: 'Server Error' });
   }
 };
 
-// @desc    Resolve Flagged Case OR Treat Patient
+// @desc    Resolve or Update Triage Category
 const resolveTriage = async (req, res) => {
   try {
     const { id } = req.params;
@@ -238,13 +217,10 @@ const resolveTriage = async (req, res) => {
     const result = await db.query(query, values);
     if (result.rows.length === 0) return res.status(404).json({ error: "Report not found" });
 
-    if (req.io) {
-        req.io.emit('queue_update', { type: actionType, id, patient: result.rows[0] });
-    }
+    if (req.io) req.io.emit('queue_update', { type: actionType, id, patient: result.rows[0] });
 
     res.json({ message: 'Resolved', data: result.rows[0] });
   } catch (error) {
-    console.error("Resolve Error:", error);
     res.status(500).json({ error: 'Error resolving case' });
   }
 };
