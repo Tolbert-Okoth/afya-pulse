@@ -21,30 +21,36 @@ const ALLOWED_ORIGINS = [
     "https://afya-pulse-dashboard.vercel.app"
 ];
 
-// 1. IMPROVED CORS: Explicitly handle the pre-flight check
-app.use(cors({
+// 1. UNIFIED CORS CONFIGURATION
+// This function handles both standard domains and dynamic Vercel branch/preview URLs
+const corsOptions = {
     origin: function (origin, callback) {
         // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
-        if (ALLOWED_ORIGINS.indexOf(origin) !== -1 || origin.includes('vercel.app')) {
+        
+        const isAllowed = ALLOWED_ORIGINS.indexOf(origin) !== -1;
+        const isVercel = origin.includes('vercel.app');
+
+        if (isAllowed || isVercel) {
             callback(null, true);
         } else {
+            console.warn(`🚫 CORS blocked for origin: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"]
-}));
+};
 
-// 2. Initialize Socket.io
+// Apply CORS to Express
+app.use(cors(corsOptions));
+
+// 2. Initialize Socket.io with the SAME CORS settings
 const io = new Server(server, {
-    cors: {
-        origin: ALLOWED_ORIGINS,
-        methods: ["GET", "POST"],
-        credentials: true
-    },
-    transports: ['websocket', 'polling'] 
+    cors: corsOptions, // Shared configuration fixes the handshake error
+    transports: ['websocket', 'polling'],
+    allowEIO3: true 
 });
 
 app.use(express.json());
@@ -56,7 +62,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// Attach 'io' to every request
+// Attach 'io' to every request so controllers can emit events
 app.use((req, res, next) => {
     req.io = io; 
     next();
@@ -77,8 +83,10 @@ app.use((err, req, res, next) => {
     });
 });
 
+// Socket Connection Logic
 io.on('connection', (socket) => {
     console.log(`⚡ Client Connected: ${socket.id}`);
+    
     socket.on('disconnect', () => {
         console.log(`🔌 Client Disconnected`);
     });
