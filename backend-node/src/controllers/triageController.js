@@ -1,8 +1,8 @@
 const axios = require('axios');
 const db = require('../config/db');
 
-// 🛡️ CONFIG: Dynamically use Internal Render URL or fallback to Localhost
-// Example on Render: http://afya-pulse-ai:5000 (Internal URL)
+// 🛡️ CONFIG: Now using the Public URL as the primary connection method
+// On Render, set AI_SERVICE_URL to: https://afya-pulse-ai.onrender.com
 const AI_BASE_URL = process.env.AI_SERVICE_URL || 'http://localhost:5000';
 const AI_SECRET_KEY = process.env.SERVICE_SECRET_KEY || "default_insecure_key"; 
 
@@ -34,9 +34,9 @@ const submitTriageReport = async (req, res) => {
     };
 
     try {
-      // Construct the full URL and remove potential double slashes
+      // Construct the full URL. Using Public URL means we do NOT need port :10000
       const fullAiUrl = `${AI_BASE_URL}/predict`.replace(/([^:]\/)\/+/g, "$1");
-      console.log(`🤖 Attempting AI Handshake at: ${fullAiUrl}`);
+      console.log(`🤖 Attempting Public AI Handshake at: ${fullAiUrl}`);
 
       const response = await axios.post(fullAiUrl, {
         symptoms: symptoms,
@@ -45,14 +45,15 @@ const submitTriageReport = async (req, res) => {
         history: history || [] 
       }, {
         headers: { 'X-Service-Key': AI_SECRET_KEY },
-        timeout: 10000 // 10 seconds for Render cold starts
+        // 🕒 INCREASED TIMEOUT: 60 seconds to allow the Free Tier AI to wake up
+        timeout: 60000 
       });
 
       if (response.data && response.data.output) {
         console.log("✅ AI Response Success");
         rawAiOutput = response.data.output;
 
-        // 🧠 PARSING LOGIC 🧠
+        // 🧠 PARSING LOGIC
         const outputUpper = rawAiOutput.toUpperCase();
         if (outputUpper.includes('RISK_LEVEL: GREEN')) {
           triageCategory = 'GREEN';
@@ -95,8 +96,10 @@ const submitTriageReport = async (req, res) => {
       }
     } catch (aiError) {
       console.error('❌ AI CONNECTION FAILED:', aiError.message);
-      if (aiError.code === 'ECONNREFUSED') {
-          console.error("💡 HINT: Check Render Internal URL settings or Python Port (5000).");
+      if (aiError.code === 'ECONNABORTED') {
+          console.error("💡 HINT: AI Service timed out. It is likely spinning up.");
+      } else if (aiError.response && aiError.response.status === 401) {
+          console.error("💡 HINT: Auth Verification Failed. Check SERVICE_SECRET_KEY.");
       }
     }
 
