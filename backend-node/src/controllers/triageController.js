@@ -1,8 +1,9 @@
 const axios = require('axios');
 const db = require('../config/db');
 
-// Ensure this matches your Python Port (5000)
-const AI_SERVICE_URL = 'http://localhost:5000/predict';
+// 🛡️ CONFIG: Dynamically use Internal Render URL or fallback to Localhost
+// Example on Render: http://afya-pulse-ai:5000 (Internal URL)
+const AI_BASE_URL = process.env.AI_SERVICE_URL || 'http://localhost:5000';
 const AI_SECRET_KEY = process.env.SERVICE_SECRET_KEY || "default_insecure_key"; 
 
 // @desc    Submit a new Health Report
@@ -12,7 +13,7 @@ const submitTriageReport = async (req, res) => {
     const { symptoms, location, age, gender, phone, history } = req.body; 
     
     console.log("---------------------------------");
-    console.log("Received Phone:", phone); 
+    console.log("📡 Triage Submission - Phone:", phone); 
     console.log("---------------------------------");
 
     const doctorId = req.user ? req.user.id : null; 
@@ -23,7 +24,7 @@ const submitTriageReport = async (req, res) => {
 
     // 1. ASK THE PYTHON AI BRAIN
     let rawAiOutput = null;
-    let triageCategory = 'RED'; // Default safety net
+    let triageCategory = 'RED'; // Safety default
     
     let aiAnalysis = { 
       reasoning: 'AI service unavailable – defaulting to RED for patient safety',
@@ -33,22 +34,25 @@ const submitTriageReport = async (req, res) => {
     };
 
     try {
-      const response = await axios.post(AI_SERVICE_URL, {
+      // Construct the full URL and remove potential double slashes
+      const fullAiUrl = `${AI_BASE_URL}/predict`.replace(/([^:]\/)\/+/g, "$1");
+      console.log(`🤖 Attempting AI Handshake at: ${fullAiUrl}`);
+
+      const response = await axios.post(fullAiUrl, {
         symptoms: symptoms,
         age: age || "Unknown",
         gender: gender || "Unknown",
         history: history || [] 
       }, {
         headers: { 'X-Service-Key': AI_SECRET_KEY },
-        timeout: 15000 
+        timeout: 10000 // 10 seconds for Render cold starts
       });
 
       if (response.data && response.data.output) {
+        console.log("✅ AI Response Success");
         rawAiOutput = response.data.output;
 
-        // 🧠 UPDATED PARSING LOGIC (Matches new app.py headers) 🧠
-        
-        // A. Extract Risk Level (Look for "RISK_LEVEL:" header)
+        // 🧠 PARSING LOGIC 🧠
         const outputUpper = rawAiOutput.toUpperCase();
         if (outputUpper.includes('RISK_LEVEL: GREEN')) {
           triageCategory = 'GREEN';
@@ -58,10 +62,8 @@ const submitTriageReport = async (req, res) => {
           triageCategory = 'RED'; 
         }
 
-        // B. Extract Follow-Up Question (Look for "QUESTION_ASKED:")
         const questions = [];
         const questionMatch = rawAiOutput.match(/QUESTION_ASKED:\s*(.*)/i);
-        
         if (questionMatch && questionMatch[1]) {
             const qText = questionMatch[1].trim();
             if (qText.length > 4 && !qText.toLowerCase().includes('none')) {
@@ -69,7 +71,6 @@ const submitTriageReport = async (req, res) => {
             }
         }
 
-        // C. Extract "Potential Causes" (Look for "POTENTIAL_CAUSES:")
         let conditions = [];
         const conditionsMatch = rawAiOutput.match(/POTENTIAL_CAUSES:\s*(.*)/i);
         if (conditionsMatch && conditionsMatch[1]) {
@@ -78,15 +79,12 @@ const submitTriageReport = async (req, res) => {
                 .filter(c => c.length > 0 && !c.toLowerCase().includes('none'));
         }
 
-        // D. Extract Rationale ("RATIONALE:")
         const reasoningMatch = rawAiOutput.match(/RATIONALE:\s*(.*)/i);
         const reasoning = reasoningMatch ? reasoningMatch[1].trim() : "AI Analysis Complete";
 
-        // E. Extract Action ("NEXT_ACTION:")
         const actionMatch = rawAiOutput.match(/NEXT_ACTION:\s*(.*)/i);
         const advice = actionMatch ? actionMatch[1].trim() : "Consult a doctor.";
 
-        // F. Build the Structured Object
         aiAnalysis = { 
            raw_output: rawAiOutput,
            reasoning: reasoning,
@@ -96,14 +94,14 @@ const submitTriageReport = async (req, res) => {
         };
       }
     } catch (aiError) {
-      console.error('AI Service Error (fallback to RED):', aiError.message || aiError);
+      console.error('❌ AI CONNECTION FAILED:', aiError.message);
+      if (aiError.code === 'ECONNREFUSED') {
+          console.error("💡 HINT: Check Render Internal URL settings or Python Port (5000).");
+      }
     }
 
     // 2. HUMAN INTEGRATION LOGIC
-    let needsReview = false;
-    if (triageCategory === 'YELLOW' || triageCategory === 'RED') {
-      needsReview = true;
-    }
+    const needsReview = (triageCategory === 'YELLOW' || triageCategory === 'RED');
 
     // 3. SAVE TO DB
     const enrichedSymptoms = `[Age: ${age || '?'}, Sex: ${gender || '?'}] ${symptoms}`;
@@ -128,14 +126,11 @@ const submitTriageReport = async (req, res) => {
     const dbResult = await db.query(query, values);
     const newPatient = dbResult.rows[0];
 
-    // 4. BROADCAST TO DOCTORS
+    // 4. BROADCAST
     if (req.io) {
       req.io.emit('queue_update', { 
         type: 'ADD', 
-        patient: { 
-          ...newPatient, 
-          ai_analysis: aiAnalysis 
-        } 
+        patient: { ...newPatient, ai_analysis: aiAnalysis } 
       });
       console.log(`Emitted New Patient Event (Category: ${triageCategory})`);
     }
@@ -153,11 +148,9 @@ const submitTriageReport = async (req, res) => {
 };
 
 // @desc    Get Stats & Active Doctor Count
-// @route   GET /api/triage/stats
 const getTriageStats = async (req, res) => {
   try {
     const doctorId = req.user.id;
-
     const statsQuery = `
       SELECT triage_category, COUNT(*) as count 
       FROM health_reports 
@@ -166,36 +159,25 @@ const getTriageStats = async (req, res) => {
       GROUP BY triage_category;
     `;
     const statsResult = await db.query(statsQuery, [doctorId]);
+    const activeDoctorsQuery = `SELECT COUNT(*) as active_count FROM users WHERE role = 'doctor';`;
+    const doctorResult = await db.query(activeDoctorsQuery);
+    
     const stats = statsResult.rows;
-
-    const doctorCountQuery = `
-        SELECT COUNT(*) as active_count 
-        FROM users 
-        WHERE role = 'doctor';
-    `;
-    const doctorResult = await db.query(doctorCountQuery);
     const activeDoctors = parseInt(doctorResult.rows[0].active_count) || 1;
 
     let redCount = 0;
     let totalCount = 0;
-
     stats.forEach(s => {
       const count = parseInt(s.count);
       totalCount += count;
-      if (s.triage_category === 'RED') redCount += count; 
+      if (s.triage_category === 'RED') redCount += count;
     });
 
     let systemStatus = 'NORMAL';
     if (redCount >= 3) systemStatus = 'CRITICAL';
     else if (totalCount > 15 || redCount >= 1) systemStatus = 'HIGH';
-    else if (totalCount > 5) systemStatus = 'MODERATE';
 
-    res.status(200).json({
-      stats: stats,
-      system_status: systemStatus,
-      active_doctors: activeDoctors 
-    });
-
+    res.status(200).json({ stats, system_status: systemStatus, active_doctors: activeDoctors });
   } catch (error) {
     console.error('Stats Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -203,11 +185,9 @@ const getTriageStats = async (req, res) => {
 };
 
 // @desc    Get Queue (My Patients + All Criticals)
-// @route   GET /api/triage/queue
 const getQueue = async (req, res) => {
   try {
     const doctorId = req.user.id;
-
     const query = `
       SELECT * FROM health_reports 
       WHERE (is_resolved = FALSE OR is_resolved IS NULL) 
@@ -216,40 +196,19 @@ const getQueue = async (req, res) => {
         CASE 
           WHEN triage_category = 'RED' THEN 1 
           WHEN triage_category = 'YELLOW' THEN 2
-          WHEN triage_category = 'GREEN' THEN 3
-          ELSE 4 
-        END,
-        created_at DESC;
+          ELSE 3 
+        END, created_at DESC;
     `;
-    
     const result = await db.query(query, [doctorId]);
-    
-    // 🛡️ CRASH PROOF PARSING 🛡️
     const parsedRows = result.rows.map(row => {
         let aiData = {};
         try {
-            if (typeof row.raw_ai_response === 'string') {
-                const trimmed = row.raw_ai_response.trim();
-                if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-                    aiData = JSON.parse(trimmed);
-                } else {
-                    throw new Error("Not JSON");
-                }
-            } else if (typeof row.raw_ai_response === 'object' && row.raw_ai_response !== null) {
-                aiData = row.raw_ai_response;
-            } else {
-                aiData = {}; 
-            }
+            aiData = typeof row.raw_ai_response === 'string' ? JSON.parse(row.raw_ai_response) : row.raw_ai_response || {};
         } catch (e) {
-            aiData = { 
-                raw_output: row.raw_ai_response, 
-                reasoning: "Legacy Data",
-                advice: "Consult Doctor"
-            };
+            aiData = { reasoning: "Data Parsing Error", advice: "Consult Doctor" };
         }
         return { ...row, ai_analysis: aiData };
     });
-
     res.status(200).json(parsedRows);
   } catch (error) {
     console.error('Queue Error:', error);
@@ -262,49 +221,25 @@ const resolveTriage = async (req, res) => {
   try {
     const { id } = req.params;
     const { doctor_final_category } = req.body; 
-
-    let query;
-    let values;
-    let actionType = 'UPDATE'; 
+    let query, values, actionType = 'UPDATE'; 
 
     if (doctor_final_category === 'TREATED') {
-        query = `
-            UPDATE health_reports 
-            SET is_resolved = TRUE, is_flagged_for_review = FALSE
-            WHERE report_id = $1
-            RETURNING *;
-        `;
+        query = `UPDATE health_reports SET is_resolved = TRUE, is_flagged_for_review = FALSE WHERE report_id = $1 RETURNING *;`;
         values = [id];
         actionType = 'REMOVE';
     } else {
-        query = `
-            UPDATE health_reports 
-            SET triage_category = $1, is_flagged_for_review = FALSE
-            WHERE report_id = $2
-            RETURNING *;
-        `;
+        query = `UPDATE health_reports SET triage_category = $1, is_flagged_for_review = FALSE WHERE report_id = $2 RETURNING *;`;
         values = [doctor_final_category, id];
     }
 
     const result = await db.query(query, values);
-    
-    if (result.rows.length === 0) {
-        return res.status(404).json({ error: "Report not found" });
-    }
-
-    const updatedPatient = result.rows[0];
+    if (result.rows.length === 0) return res.status(404).json({ error: "Report not found" });
 
     if (req.io) {
-        req.io.emit('queue_update', { 
-            type: actionType, 
-            id: updatedPatient.report_id,
-            patient: updatedPatient
-        });
-        console.log(`Emitted ${actionType} Event for ID ${id}`);
+        req.io.emit('queue_update', { type: actionType, id, patient: result.rows[0] });
     }
 
-    res.json({ message: 'Resolved', data: updatedPatient });
-
+    res.json({ message: 'Resolved', data: result.rows[0] });
   } catch (error) {
     console.error("Resolve Error:", error);
     res.status(500).json({ error: 'Error resolving case' });
