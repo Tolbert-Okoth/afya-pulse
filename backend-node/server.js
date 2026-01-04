@@ -11,7 +11,6 @@ const userRoutes = require('./src/routes/userRoutes');
 dotenv.config();
 const app = express();
 
-// 1. Create HTTP Server
 const server = http.createServer(app);
 
 // 🛡️ SECURITY: Allowed Origins
@@ -22,37 +21,45 @@ const ALLOWED_ORIGINS = [
     "https://afya-pulse-dashboard.vercel.app"
 ];
 
-// 2. Initialize Socket.io with enhanced Production settings
-const io = new Server(server, {
-  cors: {
-    origin: ALLOWED_ORIGINS,
-    methods: ["GET", "POST"],
-    credentials: true
-  },
-  // Adding transport settings helps with Render "Transport Error" disconnects
-  transports: ['websocket', 'polling'] 
-});
-
-// 3. Middleware
+// 1. IMPROVED CORS: Explicitly handle the pre-flight check
 app.use(cors({
-    origin: ALLOWED_ORIGINS,
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) return callback(null, true);
+        if (ALLOWED_ORIGINS.indexOf(origin) !== -1 || origin.includes('vercel.app')) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
+// 2. Initialize Socket.io
+const io = new Server(server, {
+    cors: {
+        origin: ALLOWED_ORIGINS,
+        methods: ["GET", "POST"],
+        credentials: true
+    },
+    transports: ['websocket', 'polling'] 
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // FIX: Prevent double slashes and trailing slash issues
 app.use((req, res, next) => {
-  req.url = req.url.replace(/\/+/g, '/');
-  next();
+    req.url = req.url.replace(/\/+/g, '/');
+    next();
 });
 
 // Attach 'io' to every request
 app.use((req, res, next) => {
-  req.io = io; 
-  next();
+    req.io = io; 
+    next();
 });
 
 // Health Check
@@ -62,24 +69,23 @@ app.get('/', (req, res) => res.status(200).send('Afya-Pulse Backend is Online �
 app.use('/api/triage', triageRoutes);
 app.use('/api/users', userRoutes);
 
-// 5. Global Error Handler (Crucial for debugging 403/500 errors on Render)
+// 5. Global Error Handler
 app.use((err, req, res, next) => {
-  console.error("❌ Backend Error:", err.stack);
-  res.status(err.status || 500).json({
-    error: err.message || "Internal Server Error"
-  });
+    console.error("❌ Backend Error:", err.stack);
+    res.status(err.status || 500).json({
+        error: err.message || "Internal Server Error"
+    });
 });
 
-// Socket Connection Logic
 io.on('connection', (socket) => {
-  console.log(`⚡ Client Connected: ${socket.id}`);
-  socket.on('disconnect', () => {
-    console.log(`🔌 Client Disconnected`);
-  });
+    console.log(`⚡ Client Connected: ${socket.id}`);
+    socket.on('disconnect', () => {
+        console.log(`🔌 Client Disconnected`);
+    });
 });
 
 const PORT = process.env.PORT || 4000;
 
 server.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+    console.log(`✅ Server running on port ${PORT}`);
 });
