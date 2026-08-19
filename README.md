@@ -1,17 +1,17 @@
-# 🩺 Afya-Pulse  
+#  Afya-Pulse  
 ## AI-Powered Healthcare Triage & Surveillance System
 
 **Afya-Pulse** is a full-stack, real-time medical surveillance and AI-driven triage platform designed specifically for the **Kenyan healthcare context**.  
 It leverages advanced AI to analyze patient symptoms (including **Sheng** and **Swahili**), categorize medical urgency, and provide **real-time visualization** for medical command centers.
 
 
-## ✨ Core Features
+##  Core Features
 
 - **AI-Powered Triage**  
   Uses **Llama 3.3 (via Groq API)** to analyze patient symptoms and assign risk levels:
-  - 🔴 RED (Critical)
-  - 🟡 YELLOW (Moderate)
-  - 🟢 GREEN (Low Risk)
+  -  RED (Critical)
+  -  YELLOW (Moderate)
+  -  GREEN (Low Risk)
 
 - **Real-Time Surveillance**  
   Doctors monitor incoming cases through a live **Medical Command Center** powered by **Socket.io**.
@@ -30,7 +30,7 @@ It leverages advanced AI to analyze patient symptoms (including **Sheng** and **
 
 ---
 
-## 🏗 Architecture
+##  Architecture
 
 Afya-Pulse follows a **microservices-inspired architecture** for scalability and clear separation of concerns:
 
@@ -66,7 +66,7 @@ Afya-Pulse follows a **microservices-inspired architecture** for scalability and
 
 ---
 
-## 📸 Screenshots
+##  Screenshots
 
 <img width="1855" height="804" alt="Screenshot 2026-01-04 125019" src="https://github.com/user-attachments/assets/2a440d25-95bb-4558-9d41-f97fa8c41ea5" />
 <img width="1833" height="816" alt="Screenshot 2026-01-04 125029" src="https://github.com/user-attachments/assets/bb0db886-4048-4a81-92ad-e2f9ddd2da66" />
@@ -93,7 +93,7 @@ Afya-Pulse follows a **microservices-inspired architecture** for scalability and
 
 ---
 
-## 🛠 Tech Stack
+##  Tech Stack
 
 | Component | Technology |
 |---------|-----------|
@@ -107,7 +107,7 @@ Afya-Pulse follows a **microservices-inspired architecture** for scalability and
 
 ---
 
-## 🚀 Installation & Setup
+##  Installation & Setup
 
 ### Environment Variables
 
@@ -129,7 +129,7 @@ Uses Firebase onIdTokenChanged to prevent session expiration during long clinica
 CORS Protection
 Strict origin filtering to prevent unauthorized API access.'
 
-📍 Built for Kenya 🇰🇪
+ Built for Kenya 🇰🇪
 
 Afya-Pulse is designed with local language, infrastructure, and public-health needs in mind—bridging AI and healthcare for faster, smarter medical response.
 
