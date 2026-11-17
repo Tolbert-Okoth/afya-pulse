@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'; 
 import axios from 'axios'; 
 import { useAuth } from '../context/AuthContext'; 
-import { io } from 'socket.io-client'; 
+import { io } from 'socket.io-client';
+import { auth } from '../firebaseConfig'; 
 import { Thermometer, Send, AlertTriangle, RotateCcw, Info, Activity, Mic, MicOff, MessageSquare, MapPin, Phone } from 'lucide-react';
 import '../App.css'; 
 
@@ -58,7 +59,10 @@ const NurseKiosk = () => {
     fetchStatus();
 
     // 🛡️ Socket Connects to Dynamic BASE_URL
-    const socket = io(BASE_URL);
+    // Server rejects sockets without a valid Firebase token
+    const socket = io(BASE_URL, {
+      auth: async (cb) => cb({ token: auth.currentUser ? await auth.currentUser.getIdToken() : null }),
+    });
     socket.on('connect', () => console.log(`🟢 Nurse Kiosk Connected: ${BASE_URL}`));
     
     socket.on('queue_update', () => {

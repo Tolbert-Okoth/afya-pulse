@@ -15,7 +15,7 @@
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
     "africastalking": "^0.7.8",
-    "axios": "^1.13.2",
+    "axios": "^1.21.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
@@ -28,5 +28,10 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
+  },
+  "overrides": {
+    "lodash": "^4.17.24",
+    "joi": "^18.3.1",
+    "axios": "$axios"
   }
 }

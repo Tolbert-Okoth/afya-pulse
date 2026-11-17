@@ -6,6 +6,7 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from functools import wraps
+import hmac
 from dotenv import load_dotenv
 from groq import Groq
 import logging
@@ -17,7 +18,7 @@ load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 ENABLE_MOCK_MODE = os.getenv("ENABLE_MOCK_MODE", "False").lower() == "true"
-SERVICE_SECRET_KEY = os.getenv("SERVICE_SECRET_KEY", "default_insecure_key")
+SERVICE_SECRET_KEY = os.getenv("SERVICE_SECRET_KEY")
 
 app = Flask(__name__)
 
@@ -60,8 +61,9 @@ else:
 def require_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        auth_key = request.headers.get('X-Service-Key')
-        if not auth_key or auth_key != SERVICE_SECRET_KEY:
+        # Fail closed: with no key configured, nobody can call the AI service
+        auth_key = request.headers.get('X-Service-Key') or ''
+        if not SERVICE_SECRET_KEY or not hmac.compare_digest(auth_key.encode(), SERVICE_SECRET_KEY.encode()):
             logger.warning(f"Auth failed: Invalid key from {request.remote_addr}")
             return jsonify({"error": "Auth Verification Failed"}), 401
         return f(*args, **kwargs)
@@ -164,7 +166,7 @@ def predict():
         symptoms, 
         str(data.get("age", "Unknown")), 
         str(data.get("gender", "Unknown")), 
-        data.get("history", [])
+        data.get("history", [])[-10:] if isinstance(data.get("history"), list) else []
     )
 
     if not ai_response:

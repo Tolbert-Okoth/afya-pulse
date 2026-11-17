@@ -3,42 +3,43 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const dotenv = require('dotenv');
+// Load .env before any module reads process.env
+dotenv.config();
+const helmet = require('helmet');
 
 // Routes
 const triageRoutes = require('./src/routes/triageRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 
-dotenv.config();
+const { attachSocketAuth } = require('./src/realtime');
 const app = express();
+app.set('trust proxy', 1);
+app.use(helmet());
 
 const server = http.createServer(app);
 
-// 🛡️ SECURITY: Allowed Origins
+// SECURITY: exact allow-list of browser origins. Add more with ALLOWED_ORIGINS (comma-separated).
 const ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
     "https://afya-pulse.vercel.app",
-    "https://afya-pulse-dashboard.vercel.app"
+    "https://afya-pulse-dashboard.vercel.app",
+    ...(process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean)
 ];
 
-// 1. UNIFIED CORS CONFIGURATION
 const corsOptions = {
     origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        
-        const isAllowed = ALLOWED_ORIGINS.indexOf(origin) !== -1;
-        const isVercel = origin.includes('vercel.app');
-
-        if (isAllowed || isVercel) {
-            callback(null, true);
-        } else {
-            console.warn(`🚫 CORS blocked for origin: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
-        }
+        // Requests without an Origin header (server-to-server, USSD callbacks) are allowed;
+        // they carry no browser credentials.
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+        console.warn(`CORS blocked for origin: ${origin}`);
+        const err = new Error('Not allowed by CORS');
+        err.status = 403;
+        callback(err);
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "X-Service-Key"]
+    allowedHeaders: ["Content-Type", "Authorization"]
 };
 
 // Apply CORS to Express
@@ -47,12 +48,12 @@ app.use(cors(corsOptions));
 // 2. Initialize Socket.io with Shared CORS
 const io = new Server(server, {
     cors: corsOptions,
-    transports: ['websocket', 'polling'],
-    allowEIO3: true 
+    transports: ['websocket', 'polling']
 });
+attachSocketAuth(io);
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50kb' }));
+app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 
 // FIX: Prevent double slashes and trailing slash issues
 app.use((req, res, next) => {
@@ -84,20 +85,11 @@ app.use('/api/triage', triageRoutes);
 app.use('/api/users', userRoutes);
 
 // 5. Global Error Handler
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-    console.error("❌ Backend Error:", err.stack);
-    res.status(err.status || 500).json({
-        error: err.message || "Internal Server Error"
-    });
-});
-
-// Socket Connection Logic
-io.on('connection', (socket) => {
-    console.log(`⚡ Client Connected: ${socket.id}`);
-    
-    socket.on('disconnect', () => {
-        console.log(`🔌 Client Disconnected`);
-    });
+    console.error("Backend error:", err.message);
+    const status = err.status || 500;
+    res.status(status).json({ error: status < 500 ? err.message : "Internal Server Error" });
 });
 
 // Port Management for Render

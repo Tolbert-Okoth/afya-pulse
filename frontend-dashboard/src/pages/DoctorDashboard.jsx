@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios'; 
 import { useAuth } from '../context/AuthContext'; 
 import { io } from 'socket.io-client';
+import { auth } from '../firebaseConfig';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Clock, Activity, Users, AlertCircle, CheckCircle, Map as MapIcon, Send, Phone, MessageCircle } from 'lucide-react'; 
 import DiseaseMap from '../components/DiseaseMap';
@@ -119,7 +120,10 @@ const DoctorDashboard = () => {
 
   // 2. REAL-TIME SOCKET UPDATES (ADD / UPDATE / REMOVE)
   useEffect(() => {
-    const socket = io(BASE_URL);
+    // Server rejects sockets without a valid Firebase token
+    const socket = io(BASE_URL, {
+      auth: async (cb) => cb({ token: auth.currentUser ? await auth.currentUser.getIdToken() : null }),
+    });
     
     socket.on('queue_update', (data) => {
         console.log("🔔 Real-time Update Received:", data);

@@ -140,11 +140,15 @@ The backend and dashboard also need their own `.env` files (database URL, Fireba
 
 ## Security
 
-- **Service-to-service authentication:** the backend and AI service share a `SERVICE_SECRET_KEY`.
-- **Token refreshing:** Firebase `onIdTokenChanged` keeps sessions alive through long clinical shifts.
-- **CORS protection:** strict origin filtering blocks unauthorized API calls.
+Afya-Pulse handles patient symptoms and phone numbers, so access is locked down by role:
 
----
+- **Authentication:** every API call and every live socket connection needs a valid Firebase ID token. Patient details are pushed in real time only to doctors and admins; other staff get a "queue changed" signal with no patient data.
+- **Roles:** the triage queue and case resolution are limited to doctors and admins on the server, not just hidden in the UI. Accounts link to a role by verified email only, and an existing record can't be taken over by a different sign-in with the same address.
+- **Service-to-service:** the AI service refuses all requests unless `SERVICE_SECRET_KEY` is set and matches (constant-time comparison). The USSD callback can require a `?token=` secret (`AT_CALLBACK_SECRET`).
+- **Web:** CORS uses an exact origin allow-list (plus `ALLOWED_ORIGINS`), Helmet headers, request size limits, and input validation on symptoms, phone numbers and triage categories.
+- **Firebase web config** in the frontend is public by design; access control is enforced by the backend.
+
+See `backend-node/.env.example` for every setting.
 
 ## Built for Kenya
 

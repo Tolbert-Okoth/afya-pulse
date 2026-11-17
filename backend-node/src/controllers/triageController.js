@@ -3,17 +3,26 @@ const db = require('../config/db');
 
 // 🛡️ CONFIG: Now using the Public URL as the primary connection method
 const AI_BASE_URL = process.env.AI_SERVICE_URL || 'http://localhost:5000';
-const AI_SECRET_KEY = process.env.SERVICE_SECRET_KEY || "default_insecure_key"; 
+const AI_SECRET_KEY = process.env.SERVICE_SECRET_KEY;
+if (!AI_SECRET_KEY) console.warn('SERVICE_SECRET_KEY is not set: AI triage is disabled and every case defaults to RED.');
+const { broadcastQueueUpdate } = require('../realtime');
+
+const VALID_CATEGORIES = ['RED', 'YELLOW', 'GREEN'];
 
 // @desc    Submit or Update a Health Report (Session-Based Logic)
 // @route   POST /api/triage
 const submitTriageReport = async (req, res) => {
   try {
-    const { symptoms, location, age, gender, phone, history } = req.body; 
+    const { location, age, gender, history } = req.body;
+    const symptoms = String(req.body.symptoms || '').trim();
+    const phone = String(req.body.phone || '').replace(/[\s()-]/g, '');
     const doctorId = req.user ? req.user.id : null; 
 
     if (!symptoms || !phone) {
       return res.status(400).json({ error: 'Missing symptoms or phone number' });
+    }
+    if (symptoms.length > 2000 || !/^\+?\d{9,15}$/.test(phone) || String(location || '').length > 100) {
+      return res.status(400).json({ error: 'Check the phone number, symptoms (max 2000 characters) and location' });
     }
 
     // 1. CHECK FOR EXISTING ACTIVE SESSION (Prevents duplication in queue)
@@ -35,9 +44,10 @@ const submitTriageReport = async (req, res) => {
     };
 
     try {
+      if (!AI_SECRET_KEY) throw new Error('AI service key not configured');
       const fullAiUrl = `${AI_BASE_URL}/predict`.replace(/([^:]\/)\/+/g, "$1");
       const response = await axios.post(fullAiUrl, {
-        symptoms, age: age || "Unknown", gender: gender || "Unknown", history: history || [] 
+        symptoms, age: age || "Unknown", gender: gender || "Unknown", history: Array.isArray(history) ? history.slice(-10) : [] 
       }, {
         headers: { 'X-Service-Key': AI_SECRET_KEY },
         timeout: 60000 // 60s for Free Tier cold starts
@@ -113,14 +123,11 @@ const submitTriageReport = async (req, res) => {
     }
 
     // 4. BROADCAST TO DOCTORS
-    if (req.io) {
-      req.io.emit('queue_update', { 
-        type: actionType, 
-        id: finalPatient.report_id,
-        patient: { ...finalPatient, ai_analysis: aiAnalysis } 
-      });
-      console.log(`📡 Broadcast ${actionType} for Phone: ${phone}`);
-    }
+    broadcastQueueUpdate(req.io, {
+      type: actionType,
+      id: finalPatient.report_id,
+      patient: { ...finalPatient, ai_analysis: aiAnalysis }
+    });
 
     res.status(201).json({
       message: needsReview ? 'Flagged for Review' : 'Triage Complete',
@@ -205,6 +212,10 @@ const resolveTriage = async (req, res) => {
     const { doctor_final_category } = req.body; 
     let query, values, actionType = 'UPDATE'; 
 
+    if (doctor_final_category !== 'TREATED' && !VALID_CATEGORIES.includes(doctor_final_category)) {
+      return res.status(400).json({ error: 'Category must be RED, YELLOW, GREEN or TREATED' });
+    }
+
     if (doctor_final_category === 'TREATED') {
         query = `UPDATE health_reports SET is_resolved = TRUE, is_flagged_for_review = FALSE WHERE report_id = $1 RETURNING *;`;
         values = [id];
@@ -217,7 +228,7 @@ const resolveTriage = async (req, res) => {
     const result = await db.query(query, values);
     if (result.rows.length === 0) return res.status(404).json({ error: "Report not found" });
 
-    if (req.io) req.io.emit('queue_update', { type: actionType, id, patient: result.rows[0] });
+    broadcastQueueUpdate(req.io, { type: actionType, id, patient: result.rows[0] });
 
     res.json({ message: 'Resolved', data: result.rows[0] });
   } catch (error) {

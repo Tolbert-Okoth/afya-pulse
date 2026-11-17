@@ -10,8 +10,10 @@ const africastalking = AfricasTalking({
 const sms = africastalking.SMS;
 
 // 🛡️ FIX: Use Production AI URL
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:5000/predict';
-const AI_SECRET_KEY = process.env.SERVICE_SECRET_KEY || "default_insecure_key"; 
+// Same base URL as the kiosk flow; /predict is appended here (it was missing, so USSD always fell back).
+const AI_PREDICT_URL = `${(process.env.AI_SERVICE_URL || 'http://localhost:5000').replace(/\/+$/, '').replace(/\/predict$/, '')}/predict`;
+const AI_SECRET_KEY = process.env.SERVICE_SECRET_KEY;
+const { broadcastQueueUpdate } = require('../realtime');
 
 // 🌍 TRANSLATION DICTIONARY
 const CONTENT = {
@@ -75,14 +77,18 @@ const handleUSSD = async (req, res) => {
                 break;
             case 6:
                 // --- FINAL PROCESSING ---
-                const [langChoice, menuChoice, location, age, genderSelect, symptoms] = inputs;
+                const [, , rawLocation, rawAge, genderSelect, rawSymptoms] = inputs;
+                const location = rawLocation.slice(0, 60);
+                const age = rawAge.slice(0, 3);
+                const symptoms = rawSymptoms.slice(0, 500);
                 const gender = genderSelect === '1' ? 'Male' : 'Female';
                 
                 let triageCategory = 'YELLOW'; // Safe default
                 let rawAiOutput = "AI Timeout/Fallback";
 
                 try {
-                    const aiRes = await axios.post(AI_SERVICE_URL, {
+                    if (!AI_SECRET_KEY) throw new Error('AI key not configured');
+                    const aiRes = await axios.post(AI_PREDICT_URL, {
                         symptoms, age, gender, history: []
                     }, { 
                         headers: { 'X-Service-Key': AI_SECRET_KEY },
@@ -111,12 +117,11 @@ const handleUSSD = async (req, res) => {
                     const reportId = dbRes.rows[0].report_id;
 
                     // Real-time Dashboard Update
-                    if (req.io) {
-                        req.io.emit('queue_update', { 
-                            type: 'ADD', 
-                            patient: { report_id: reportId, symptoms: enriched, triage_category: triageCategory, location, patient_phone: phoneNumber } 
-                        });
-                    }
+                    broadcastQueueUpdate(req.io, {
+                        type: 'ADD',
+                        id: reportId,
+                        patient: { report_id: reportId, symptoms: enriched, triage_category: triageCategory, location, patient_phone: phoneNumber }
+                    });
 
                     // SMS Delivery
                     const smsText = triageCategory === 'RED' ? lang.sms_red : lang.sms_yellow;

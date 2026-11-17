@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Activity, AlertCircle, CheckCircle, Shield, Users, FileText } from 'lucide-react'; 
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from 'firebase/auth';
 import './Login.css';
 import { auth } from '../firebaseConfig'; 
 
@@ -51,7 +51,14 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      // The server only accepts verified emails, so prompt verification instead of failing silently
+      if (!cred.user.emailVerified) {
+        await sendEmailVerification(cred.user);
+        await signOut(auth);
+        setError('Please verify your email first. We have sent you a verification link; open it, then sign in again.');
+        setLoading(false);
+      }
     } catch (err) {
       console.error(err);
       setError('Invalid email or password. Please check your credentials.');
@@ -135,7 +142,7 @@ const Login = () => {
                   <input 
                     type="email" 
                     className="form-input" 
-                    placeholder="name@moh.go.ke"
+                    placeholder="name@clinic.co.ke"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required 
@@ -190,7 +197,7 @@ const Login = () => {
                 <input 
                   type="email" 
                   className="form-input" 
-                  placeholder="name@moh.go.ke"
+                  placeholder="name@clinic.co.ke"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required 
@@ -243,7 +250,7 @@ const Login = () => {
               <Shield className="feature-icon" size={24} />
               <div>
                 <h4>Data Privacy & Security</h4>
-                <p>Compliant with MoH standards for protecting sensitive medical history.</p>
+                <p>Role-based access: patient details are shown only to doctors, over authenticated connections.</p>
               </div>
             </div>
           </div>
