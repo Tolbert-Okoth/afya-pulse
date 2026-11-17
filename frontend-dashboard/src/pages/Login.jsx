@@ -99,7 +99,7 @@ const Login = () => {
           {/* 🆕 HEADER BAR: Logo + User Manual Download */}
           <div className="card-top-bar">
             <div className="logo-compact">
-              <Activity size={24} color="#0d6efd" />
+              <span className="tag-mark" aria-hidden="true"><i /><i /><i /></span>
               <span className="logo-text">Afya-Pulse</span>
             </div>
 
@@ -116,8 +116,8 @@ const Login = () => {
           </div>
 
           <div className="login-header-simple">
-            <h3>Welcome Back</h3>
-            <p>Please sign in to your account</p>
+            <h3>Sign in to triage</h3>
+            <p>For nurses, clinical officers and doctors on the Afya-Pulse network.</p>
           </div>
 
           {error && (
@@ -170,7 +170,7 @@ const Login = () => {
                 </div>
 
                 <button type="submit" className="btn-primary" disabled={loading}>
-                  {loading ? 'Signing In...' : 'Sign In'}
+                  {loading ? 'Signing in…' : 'Sign in'}
                 </button>
               </form>
 
@@ -179,11 +179,12 @@ const Login = () => {
               </div>
 
               <button onClick={handleGoogleLogin} className="google-btn">
-                <img 
-                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
-                  alt="Google" 
-                  width="20" 
-                />
+                <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                  <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.2l7.8 6.1C12.4 13.6 17.7 9.5 24 9.5z"/>
+                  <path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 7l7.5 5.8c4.4-4 6.8-10 6.8-17.3z"/>
+                  <path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.8l7.8-6.1z"/>
+                  <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.8 6.1C6.6 42.6 14.6 48 24 48z"/>
+                </svg>
                 <span>Sign in with Google</span>
               </button>
             </>
@@ -224,38 +225,31 @@ const Login = () => {
         </div>
       </div>
 
-      {/* 👉 RIGHT SIDE: PATIENT FOCUS FEATURES */}
+      {/* RIGHT SIDE: the triage tag */}
       <div className="info-section">
         <div className="info-content">
-          <div className="badge-pill">Patient-First Care</div>
-          <h1>Afya-Pulse Triage</h1>
-          <p className="info-subtitle">Ensuring every patient gets the right care at the right time.</p>
+          <p className="info-eyebrow">Afya-Pulse · triage network</p>
+          <h1>Every patient gets a tag.<br />Every tag gets seen.</h1>
 
-          <div className="feature-list">
-            <div className="feature-item">
-              <Users className="feature-icon" size={24} />
-              <div>
-                <h4>Rapid Patient Intake</h4>
-                <p>Quickly register walk-ins and verify existing patient records.</p>
-              </div>
+          <div className="hero-tag" aria-hidden="true">
+            <div className="hero-tag-body">
+              <span className="hero-tag-eyelet" />
+              <div className="hero-tag-row"><span>Patient</span><b>#00418</b></div>
+              <div className="hero-tag-row"><span>County</span><b>Kisumu</b></div>
+              <div className="hero-tag-row"><span>Waiting</span><b>+04m</b></div>
+              <p>Chest pressure since morning, short of breath on walking.</p>
             </div>
-            <div className="feature-item">
-              <Activity className="feature-icon" size={24} />
-              <div>
-                <h4>Smart Vital Triage</h4>
-                <p>Automated categorization of patients by urgency (Emergency, Priority, Routine).</p>
-              </div>
-            </div>
-            <div className="feature-item">
-              <Shield className="feature-icon" size={24} />
-              <div>
-                <h4>Data Privacy & Security</h4>
-                <p>Role-based access: patient details are shown only to doctors, over authenticated connections.</p>
-              </div>
-            </div>
+            <div className="hero-tag-strip red"><span>RED</span><small>see now</small></div>
+            <div className="hero-tag-strip yellow"><span>YELLOW</span><small>see soon</small></div>
+            <div className="hero-tag-strip green"><span>GREEN</span><small>self-care</small></div>
           </div>
+
+          <ul className="feature-list">
+            <li><Users size={18} /> Intake by kiosk, voice or USSD on any phone</li>
+            <li><Activity size={18} /> AI suggests a tag; a clinician confirms it</li>
+            <li><Shield size={18} /> Patient details are visible to doctors only</li>
+          </ul>
         </div>
-        
         <div className="bg-pattern-circle"></div>
         <div className="bg-pattern-circle-2"></div>
       </div>

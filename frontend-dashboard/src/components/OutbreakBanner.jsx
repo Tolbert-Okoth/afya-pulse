@@ -10,14 +10,14 @@ const OutbreakBanner = ({ alerts, onDismiss }) => {
         <div key={index} className="outbreak-banner">
           <div className="outbreak-content">
             <div className="pulse-icon">
-              <AlertTriangle size={28} color="white" fill="#EF4444" />
+              <AlertTriangle size={26} color="white" />
             </div>
             <div>
-              <strong>⚠️ EPIDEMIC ALERT: {alert.location.toUpperCase()}</strong>
-              <p>{alert.message}</p>
+              <strong>POSSIBLE CLUSTER · {alert.location.toUpperCase()}</strong>
+              <p>{alert.message.replace(/^⚠️\s*SURVEILLANCE ALERT:\s*/, '')}</p>
             </div>
           </div>
-          <button onClick={() => onDismiss(index)} className="dismiss-btn">
+          <button onClick={() => onDismiss(index)} className="dismiss-btn" aria-label="Dismiss alert">
             <X size={20} color="white" />
           </button>
         </div>

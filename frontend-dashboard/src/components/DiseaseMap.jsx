@@ -93,7 +93,7 @@ const HeatmapLayer = ({ data }) => {
       radius: 30,
       blur: 20,
       maxZoom: 10,
-      gradient: { 0.4: 'blue', 0.6: 'lime', 0.8: 'orange', 1.0: 'red' }
+      gradient: { 0.3: '#23905a', 0.6: '#f0b400', 1.0: '#d42a3c' }
     }).addTo(map);
 
     // CLEANUP: Remove old layer when data changes!
@@ -107,7 +107,7 @@ const HeatmapLayer = ({ data }) => {
 
 const DiseaseMap = ({ patients }) => {
   return (
-    <div style={{ height: '500px', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid #374151', zIndex: 0 }}>
+    <div style={{ height: '360px', width: '100%', zIndex: 0 }}>
       <MapContainer 
         center={[-0.0236, 37.9062]} 
         zoom={6} 
@@ -116,7 +116,7 @@ const DiseaseMap = ({ patients }) => {
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         />
         <HeatmapLayer data={patients} />
       </MapContainer>

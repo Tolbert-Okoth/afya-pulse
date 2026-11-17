@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { Activity, ShieldCheck, LogOut } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
@@ -17,8 +17,8 @@ const AppLayout = () => {
   if (loading) {
     return (
       <div className="loading-screen">
-        <Activity className="spinner" size={40} />
-        <p>Connecting to Secure Health Network...</p>
+        <span className="tag-mark" aria-hidden="true"><i /><i /><i /></span>
+        <p>Connecting to the triage network…</p>
       </div>
     );
   }
@@ -31,30 +31,31 @@ const AppLayout = () => {
         {currentUser && (
           <header className="navbar">
             <div className="logo">
-              <Activity size={28} className="text-blue-500" />
+              <span className="tag-mark" aria-hidden="true"><i /><i /><i /></span>
               <h1>Afya-Pulse</h1>
+              <span className="logo-sub">Triage network</span>
             </div>
             
             <nav className="nav-links">
               {/* EVERYONE sees Nurse Kiosk */}
-              <Link to="/triage" className="nav-link">
-                Nurse Kiosk
-              </Link>
+              <NavLink to="/triage" className="nav-link">
+                Intake
+              </NavLink>
               
               {/* 🔒 DOCTORS ONLY see Command Center */}
               {['doctor', 'admin'].includes(currentUser.role) && (
-                <Link to="/doctor-dashboard" className="nav-link doctor-link">
-                  Command Center
-                </Link>
+                <NavLink to="/doctor-dashboard" className="nav-link doctor-link">
+                  Command center
+                </NavLink>
               )}
             </nav>
 
             {/* User Profile / Logout */}
-            <div className="status-badge" onClick={logout} title="Logout" style={{cursor: 'pointer'}}>
+            <button type="button" className="status-badge" onClick={logout} title="Sign out">
               <ShieldCheck size={16} />
               <span className="user-email">{currentUser.email?.split('@')[0]}</span>
               <LogOut size={16} className="logout-icon" />
-            </div>
+            </button>
           </header>
         )}
 

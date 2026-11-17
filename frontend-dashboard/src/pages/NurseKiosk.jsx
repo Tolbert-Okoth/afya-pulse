@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext'; 
 import { io } from 'socket.io-client';
 import { auth } from '../firebaseConfig'; 
-import { Thermometer, Send, AlertTriangle, RotateCcw, Info, Activity, Mic, MicOff, MessageSquare, MapPin, Phone } from 'lucide-react';
+import { Send, AlertTriangle, RotateCcw, Info, Activity, Mic, MicOff, MessageSquare, MapPin, Phone } from 'lucide-react';
 import '../App.css'; 
 
 const NurseKiosk = () => {
@@ -72,15 +72,6 @@ const NurseKiosk = () => {
     return () => socket.disconnect();
     // ✅ Added BACKEND_URL to dependencies to satisfy ESLint
   }, [token, BASE_URL, BACKEND_URL]);
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'CRITICAL': return 'linear-gradient(135deg, #EF4444 0%, #991B1B 100%)'; 
-      case 'HIGH': return 'linear-gradient(135deg, #F59E0B 0%, #B45309 100%)'; 
-      case 'MODERATE': return 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)'; 
-      default: return 'linear-gradient(135deg, #10B981 0%, #047857 100%)'; 
-    }
-  };
 
   const correctMedicalTerms = (text) => {
     let cleanText = text.toLowerCase();
@@ -218,240 +209,180 @@ const NurseKiosk = () => {
     setError('');
   };
 
+  const category = result?.data?.triage_category;
+  const CATEGORY_COPY = {
+    RED: 'Life-threatening: see a clinician now',
+    YELLOW: 'Urgent: needs review soon',
+    GREEN: 'Self-care advice is appropriate',
+  };
+
   return (
     <div className="main-content">
-      <div style={{ marginBottom: '2rem' }}>
-        <h2>Nurse Kiosk</h2>
-        <p className="subtitle">AI-Powered Patient Triage System</p>
+      <div className="page-head">
+        <div>
+          <p className="eyebrow">Patient intake</p>
+          <h2>{result ? 'Triage result' : 'New patient'}</h2>
+        </div>
+        {result && (
+          <button type="button" className="btn-primary btn-secondary" style={{ width: 'auto' }} onClick={handleReset}>
+            <RotateCcw size={16} /> Next patient
+          </button>
+        )}
       </div>
 
       <div className="split-layout">
-        <div className="left-panel">
+        <div>
           {!result && (
-            <section className="card">
-               <h3 className="flex items-center gap-2"><Thermometer className="text-blue-500"/> Patient Intake</h3>
-               <p style={{ color: '#6B7280', marginBottom: '20px' }}>
-                Enter demographics and describe the condition. The AI will analyze urgency.
-              </p>
-              
+            <section className="card intake-card">
+              <div className="intake-steps" aria-hidden="true">
+                <span className="on">1 Details</span><span>→</span><span className="on">2 Symptoms</span><span>→</span><span>3 Tag</span>
+              </div>
+
               <form onSubmit={(e) => handleSubmit(e, false)}>
-                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-                  <div style={{ flex: 1 }}>
-                    <label>Patient Age</label>
-                    <input 
-                      type="number" 
-                      placeholder="e.g. 45" 
-                      required
-                      min="0" max="120"
-                      value={formData.age}
-                      onChange={e => setFormData({...formData, age: e.target.value})}
-                    />
+                <div className="field-row">
+                  <div className="field">
+                    <label htmlFor="age">Age</label>
+                    <input id="age" type="number" placeholder="e.g. 45" required min="0" max="120"
+                      value={formData.age} onChange={e => setFormData({ ...formData, age: e.target.value })} />
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <label>Gender</label>
-                    <select 
-                      value={formData.gender}
-                      onChange={e => setFormData({...formData, gender: e.target.value})}
-                      required
-                    >
-                      <option value="">Select...</option>
+                  <div className="field">
+                    <label htmlFor="gender">Sex</label>
+                    <select id="gender" value={formData.gender} required
+                      onChange={e => setFormData({ ...formData, gender: e.target.value })}>
+                      <option value="">Select…</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                     </select>
                   </div>
                 </div>
 
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <Phone size={16} /> Patient Phone Number
-                  </label>
-                  <input 
-                    type="tel" 
-                    placeholder="e.g. 0712 345 678" 
-                    required
-                    value={formData.phone}
-                    onChange={e => {
-                        setFormData({...formData, phone: e.target.value});
-                        if (error.includes('phone')) setError(''); 
-                    }}
-                    style={{ 
-                        width: '100%', padding: '10px', borderRadius: '6px', 
-                        border: error.includes('phone') ? '1px solid #EF4444' : '1px solid #D1D5DB', 
-                        fontSize: '1rem' 
-                    }}
-                  />
+                <div className="field-row">
+                  <div className="field">
+                    <label htmlFor="phone"><Phone size={14} /> Phone number</label>
+                    <input id="phone" type="tel" placeholder="0712 345 678" required
+                      className={error.includes('phone') ? 'invalid' : ''}
+                      value={formData.phone}
+                      onChange={e => {
+                        setFormData({ ...formData, phone: e.target.value });
+                        if (error.includes('phone')) setError('');
+                      }} />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="county"><MapPin size={14} /> County</label>
+                    <select id="county" value={formData.location} required
+                      onChange={e => setFormData({ ...formData, location: e.target.value })}>
+                      <option value="">Select county…</option>
+                      {LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                    </select>
+                  </div>
                 </div>
 
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <MapPin size={16} /> Location (County)
-                  </label>
-                  <select 
-                    value={formData.location}
-                    onChange={e => setFormData({...formData, location: e.target.value})}
-                    required
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB' }}
-                  >
-                    <option value="">Select County...</option>
-                    {LOCATIONS.map(loc => (
-                      <option key={loc} value={loc}>{loc}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="input-group" style={{ position: 'relative' }}>
-                  <label style={{ marginBottom: '8px', display: 'block' }}>Symptoms Description</label>
-                  <textarea 
-                    rows="6" 
-                    placeholder="e.g. Severe chest pressure... (Type or use Mic)" 
-                    required
-                    value={isListening ? (formData.symptoms + " " + interimTranscript) : formData.symptoms}
-                    onChange={e => setFormData({...formData, symptoms: e.target.value})}
-                    style={{ paddingRight: '50px', borderColor: isListening ? '#EF4444' : '#E5E7EB' }} 
-                  ></textarea>
-
-                  <button 
-                    type="button"
-                    onClick={toggleVoiceInput}
-                    style={{
-                      position: 'absolute', right: '15px', bottom: '15px',
-                      background: isListening ? '#EF4444' : '#F3F4F6',
-                      color: isListening ? 'white' : '#6B7280',
-                      border: 'none', borderRadius: '50%', width: '40px', height: '40px',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                      transform: isListening ? 'scale(1.1)' : 'scale(1)', transition: 'all 0.2s'
-                    }}
-                  >
-                    {isListening ? <MicOff size={20} /> : <Mic size={20} />}
-                  </button>
+                <div className="field">
+                  <label htmlFor="symptoms">Symptoms, in the patient&apos;s words</label>
+                  <div className={`symptom-box ${isListening ? 'listening' : ''}`}>
+                    <textarea id="symptoms" rows="6" required
+                      placeholder="e.g. Chest pressure since this morning, short of breath when walking… (type or dictate)"
+                      value={isListening ? (formData.symptoms + ' ' + interimTranscript) : formData.symptoms}
+                      onChange={e => setFormData({ ...formData, symptoms: e.target.value })} />
+                    <button type="button" onClick={toggleVoiceInput} className={`mic-btn ${isListening ? 'on' : ''}`}
+                      aria-label={isListening ? 'Stop dictation' : 'Dictate symptoms'}>
+                      {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                    </button>
+                  </div>
                 </div>
 
                 <button type="submit" className="btn-primary" disabled={loading}>
-                  {loading ? 'Analyzing...' : <> <Send size={18} /> Start Triage </>}
+                  {loading ? 'Assessing…' : <><Send size={17} /> Assess and tag patient</>}
                 </button>
               </form>
-              
+
               {error && (
-                <div className="error-msg" style={{ 
-                    marginTop: '15px', padding: '10px', background: '#FEF2F2', 
-                    color: '#DC2626', border: '1px solid #FECACA', borderRadius: '8px',
-                    display: 'flex', alignItems: 'center', gap: '8px'
-                }}>
-                    <AlertTriangle size={18}/> {error}
-                </div>
+                <div className="form-error" role="alert"><AlertTriangle size={17} /> {error}</div>
               )}
             </section>
           )}
 
           {result && (
-             <section className={`card border-${result.data.triage_category}`}>
-                <div className="result-header">
-                  <h3>Triage Analysis</h3>
-                  <span className={`badge badge-${result.data.triage_category}`}>
-                    {result.data.triage_category}
-                  </span>
+            <section className={`card result-tag ${category}`}>
+              <div className="result-tag-head">
+                <div>
+                  <h3>{category}</h3>
+                  <p>{CATEGORY_COPY[category] || 'Assessment recorded'}</p>
                 </div>
-                
-                <div className="result-details">
-                  <div style={{ marginBottom: '15px' }}>
-                    <strong style={{ display:'block', marginBottom:'5px', color:'#374151' }}>📝 Clinical Assessment:</strong>
-                    <p style={{ margin:0, color:'#4B5563', fontStyle:'italic' }}>"{result.ai_analysis?.reasoning}"</p>
-                  </div>
+                <span className="eyelet" aria-hidden="true" />
+              </div>
+              <div className="result-tag-perf" />
 
-                  {result.ai_analysis?.follow_up_questions && result.ai_analysis.follow_up_questions.length > 0 ? (
-                    <div style={{ marginBottom: '20px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', padding: '15px' }}>
-                      <strong style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px', color:'#1E40AF' }}>
-                        <MessageSquare size={18} /> AI Needs More Info:
-                      </strong>
-                      {result.ai_analysis.follow_up_questions.map((q, i) => (
-                        <div key={i} style={{ marginBottom: '12px' }}>
-                          <label style={{ display:'block', fontSize:'0.9rem', color:'#1E3A8A', marginBottom:'4px', fontWeight:'500' }}>{q}</label>
-                          <input 
-                            type="text" 
-                            placeholder="Type patient's answer..."
-                            value={followUpAnswers[`q${i}`] || ''}
-                            onChange={(e) => setFollowUpAnswers({...followUpAnswers, [`q${i}`]: e.target.value})}
-                            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #93C5FD', fontSize:'0.95rem' }}
-                          />
-                        </div>
-                      ))}
-                      <button className="btn-primary" style={{ width:'100%', marginTop:'10px', background:'#2563EB', justifyContent:'center' }} onClick={(e) => handleSubmit(e, true)} disabled={loading}>
-                          {loading ? 'Thinking...' : 'Submit Answers & Refine Triage'}
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ textAlign:'center', padding:'10px', background:'#ECFDF5', color:'#065F46', borderRadius:'8px', marginBottom:'15px', border:'1px solid #A7F3D0' }}>
-                        ✅ <strong>Assessment Complete</strong><br/><span style={{fontSize:'0.85rem'}}>No further questions required.</span>
-                    </div>
-                  )}
+              <div className="result-body">
+                <div className="result-block">
+                  <h4>Clinical assessment</h4>
+                  <p>{result.ai_analysis?.reasoning}</p>
+                </div>
 
-                  {result.ai_analysis?.possible_conditions && (
-                    <div style={{ marginBottom: '15px' }}>
-                      <strong style={{ display:'block', marginBottom:'5px', color:'#374151' }}>🔍 Potential Conditions:</strong>
-                      <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
-                        {result.ai_analysis.possible_conditions.map((cause, i) => (
-                          <span key={i} style={{ background:'#F3F4F6', padding:'4px 10px', borderRadius:'15px', fontSize:'0.85rem', color:'#374151' }}>{cause}</span>
-                        ))}
+                {result.ai_analysis?.follow_up_questions?.length > 0 ? (
+                  <div className="followup">
+                    <div className="result-block" style={{ marginBottom: 12 }}>
+                      <h4><MessageSquare size={13} /> Ask the patient</h4>
+                    </div>
+                    {result.ai_analysis.follow_up_questions.map((q, i) => (
+                      <div key={i} className="field">
+                        <label htmlFor={`fq${i}`}>{q}</label>
+                        <input id={`fq${i}`} type="text" placeholder="Patient's answer"
+                          value={followUpAnswers[`q${i}`] || ''}
+                          onChange={(e) => setFollowUpAnswers({ ...followUpAnswers, [`q${i}`]: e.target.value })} />
                       </div>
-                    </div>
-                  )}
-
-                  {result.ai_analysis?.advice && (
-                    <div className="advice-box">
-                      <strong>💡 Recommendation:</strong>
-                      <p>{result.ai_analysis.advice}</p>
-                    </div>
-                  )}
-                  
-                  <div style={{ fontSize:'0.75rem', color:'#9CA3AF', marginTop:'20px', borderTop:'1px solid #E5E7EB', paddingTop:'10px' }}>
-                    ⚠️ <strong>Disclaimer:</strong> {result.ai_analysis?.disclaimer || "Not a medical diagnosis."}
+                    ))}
+                    <button className="btn-primary" onClick={(e) => handleSubmit(e, true)} disabled={loading}>
+                      {loading ? 'Re-assessing…' : 'Submit answers and re-assess'}
+                    </button>
                   </div>
+                ) : (
+                  <div className="complete-note">Assessment complete: no further questions.</div>
+                )}
 
-                  <button className="btn-primary" onClick={handleReset} style={{ marginTop: '24px', background: '#374151' }}>
-                    <RotateCcw size={18} /> Process Next Patient
-                  </button>
-                </div>
-             </section>
+                {result.ai_analysis?.possible_conditions?.length > 0 && (
+                  <div className="result-block">
+                    <h4>Possible causes</h4>
+                    <div className="conditions">
+                      {result.ai_analysis.possible_conditions.map((cause, i) => <span key={i}>{cause}</span>)}
+                    </div>
+                  </div>
+                )}
+
+                {result.ai_analysis?.advice && (
+                  <div className="result-block advice-box">
+                    <h4>Next step</h4>
+                    <p>{result.ai_analysis.advice}</p>
+                  </div>
+                )}
+
+                <p className="disclaimer">
+                  {result.ai_analysis?.disclaimer || 'Decision support only, not a diagnosis. A clinician confirms every RED and YELLOW tag.'}
+                </p>
+              </div>
+            </section>
           )}
         </div>
 
-        <div className="right-panel" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div className="card" style={{ padding: '1.5rem' }}>
-             <h3 className="flex items-center gap-2"><Info size={18} /> Triage Guidelines</h3>
-             <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '0.9rem', color: '#4B5563' }}>
-              <li style={{ marginBottom: '12px', display: 'flex', gap: '10px' }}>
-                <span className="badge badge-RED" style={{ fontSize: '0.7rem' }}>RED</span> <span>Life-threatening</span>
-              </li>
-              <li style={{ marginBottom: '12px', display: 'flex', gap: '10px' }}>
-                <span className="badge badge-YELLOW" style={{ fontSize: '0.7rem' }}>YELLOW</span> <span>Urgent</span>
-              </li>
-              <li style={{ display: 'flex', gap: '10px' }}>
-                <span className="badge badge-GREEN" style={{ fontSize: '0.7rem' }}>GREEN</span> <span>Self-care</span>
-              </li>
+        <aside className="stack">
+          <section className="card">
+            <h3><Info size={16} /> Tag guide</h3>
+            <ul className="guide-list">
+              <li><span className="badge badge-RED">RED</span><span>Life-threatening, see now</span></li>
+              <li><span className="badge badge-YELLOW">YELLOW</span><span>Urgent, see soon</span></li>
+              <li><span className="badge badge-GREEN">GREEN</span><span>Self-care advice</span></li>
             </ul>
-          </div>
+          </section>
 
-          <div className="card" style={{ 
-            background: getStatusColor(systemStatus), 
-            color: 'white',
-            transition: 'background 0.5s ease' 
-          }}>
-            <h3 style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Activity size={20} /> Surveillance Level
-            </h3>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', opacity: 0.9 }}>
-              <span>Triage Load:</span> <strong style={{ fontSize: '1.1rem' }}>{systemStatus}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', opacity: 0.9, marginTop: '8px' }}>
-              <span>AI Model:</span> <strong>Online (v2.1)</strong>
-            </div>
+          <section className={`card load-panel ${systemStatus}`}>
+            <h3><Activity size={16} /> Network load</h3>
+            <div className="load-value">{systemStatus}</div>
+            <div className="load-row"><span>Triage engine</span><strong>online</strong></div>
             {(systemStatus === 'HIGH' || systemStatus === 'CRITICAL') && (
-               <div style={{ marginTop: '15px', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '8px', fontSize: '0.85rem' }}>
-                 ⚠️ High report volume detected.
-               </div>
+              <div className="load-warn">High volume of urgent reports right now.</div>
             )}
-          </div>
-        </div>
+          </section>
+        </aside>
       </div>
     </div>
   );

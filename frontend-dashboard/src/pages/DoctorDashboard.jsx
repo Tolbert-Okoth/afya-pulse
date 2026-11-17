@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { io } from 'socket.io-client';
 import { auth } from '../firebaseConfig';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Clock, Activity, Users, AlertCircle, CheckCircle, Map as MapIcon, Send, Phone, MessageCircle } from 'lucide-react'; 
+import { CheckCircle, Map as MapIcon, Check, Phone, MessageCircle } from 'lucide-react';
 import DiseaseMap from '../components/DiseaseMap';
 import OutbreakBanner from '../components/OutbreakBanner'; 
 import '../App.css';
@@ -92,9 +92,9 @@ const DoctorDashboard = () => {
         if (responseData.active_doctors) setActiveDoctors(responseData.active_doctors);
 
         const chartData = [
-          { name: 'GREEN', count: 0, color: '#10B981' },
-          { name: 'YELLOW', count: 0, color: '#F59E0B' },
-          { name: 'RED', count: 0, color: '#EF4444' }
+          { name: 'RED', count: 0, color: '#d42a3c' },
+          { name: 'YELLOW', count: 0, color: '#f0b400' },
+          { name: 'GREEN', count: 0, color: '#23905a' }
         ];
 
         if (rawStats) {
@@ -163,11 +163,12 @@ const DoctorDashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
+  const countOf = (cat) => queue.filter(p => p.triage_category === cat).length;
   const kpiData = [
-    { label: 'Total Reports', value: queue.length, icon: Users, color: 'blue' },
-    { label: 'Critical Alerts', value: queue.filter(p => p.triage_category === 'RED').length, icon: AlertCircle, color: 'red' },
-    { label: 'Avg Response Time', value: calculateAvgWait(), icon: Clock, color: 'yellow' },
-    { label: 'Medics Online', value: activeDoctors, icon: Activity, color: 'green' },
+    { label: 'Red tags', value: countOf('RED'), note: 'see now', tone: 'red' },
+    { label: 'Yellow tags', value: countOf('YELLOW'), note: 'see soon', tone: 'yellow' },
+    { label: 'Average wait', value: calculateAvgWait(), note: `${queue.length} open case${queue.length === 1 ? '' : 's'}`, tone: '' },
+    { label: 'Clinicians online', value: activeDoctors, note: 'doctors on network', tone: 'green' },
   ];
 
   const markAsTreated = async (id) => {
@@ -190,6 +191,13 @@ const DoctorDashboard = () => {
     return diffMins < 1 ? 'Just now' : `+${diffMins}m`;
   };
 
+  // Reports start with "[Age: 54, Sex: Male]" (or "[USSD-EN] [Age:54, Sex:Male]"); show that as details, not text
+  const splitReport = (text = '') => {
+    const m = text.match(/^(?:\[USSD-\w+\]\s*)?\[Age:\s*([^,\]]*),\s*Sex:\s*([^\]]*)\]\s*/i);
+    if (!m) return { age: null, sex: null, body: text };
+    return { age: m[1].trim(), sex: m[2].trim(), body: text.slice(m[0].length) };
+  };
+
   const formatPhoneLink = (number) => `tel:${number?.replace(/\s+/g, '') || '#'}`;
   
   const formatWhatsAppLink = (number) => {
@@ -202,131 +210,111 @@ const DoctorDashboard = () => {
 
   return (
     <div className="main-content">
-      <OutbreakBanner 
-        alerts={outbreakAlerts} 
-        onDismiss={(i) => setOutbreakAlerts(prev => prev.filter((_, idx) => idx !== i))} 
+      <OutbreakBanner
+        alerts={outbreakAlerts}
+        onDismiss={(i) => setOutbreakAlerts(prev => prev.filter((_, idx) => idx !== i))}
       />
 
-      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
+      <div className="page-head">
         <div>
-          <h2><Activity className="text-blue-600" /> Afya-Pulse Command Center</h2>
-          <p className="subtitle" style={{marginBottom: 0}}>Real-time Surveillance Network</p>
+          <p className="eyebrow">Command center · {now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <h2>Patients waiting for review</h2>
         </div>
-        <div className="status-badge" style={{ borderColor: '#10B981', color: '#065F46', background: '#ECFDF5' }}>
-          <span className="live-dot"></span> System Live
-        </div>
+        <div className="status-badge"><span className="live-dot" /> Live feed</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-        {kpiData.map((kpi, index) => (
-          <div key={index} className="card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ padding: '12px', borderRadius: '12px', background: `var(--${kpi.color}-bg)`, color: `var(--${kpi.color}-text)` }}>
-              <kpi.icon size={24} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.9rem', color: '#6B7280', fontWeight: '500' }}>{kpi.label}</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827' }}>{kpi.value}</div>
-            </div>
+      <div className="kpi-strip">
+        {kpiData.map((kpi) => (
+          <div key={kpi.label} className={`kpi ${kpi.tone}`}>
+            <div className="kpi-label">{kpi.label}</div>
+            <div className="kpi-value">{kpi.value}</div>
+            <div className="kpi-note">{kpi.note}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}> 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <section className="card" style={{ padding: '0', border: 'none', background: 'transparent' }}>
-                 <h3 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                   <MapIcon size={20} className="text-blue-500" /> Active Hotspots
-                   <span className="badge badge-RED" style={{fontSize: '0.7rem'}}>LIVE</span>
-                 </h3>
-                 <DiseaseMap patients={queue} />
-            </section>
+      <div className="command-grid">
+        <section>
+          <div className="section-label">
+            <h3>Queue <span className="count">· sorted by tag, then wait</span></h3>
+            <span className="count">{queue.length} open</span>
+          </div>
 
-            <section className="card">
-                <div className="result-header">
-                   <h3><Clock size={20} className="text-gray-500" /> Incoming Alerts</h3>
-                   <span className="badge" style={{background: '#EFF6FF', color: '#3B82F6'}}>
-                     {queue.length} Pending
-                   </span>
+          <div className="tag-list">
+            {queue.map(patient => {
+              const report = splitReport(patient.ai_analysis?.interpreted_symptom || patient.symptoms);
+              return (
+              <article key={patient.report_id} className={`tag-card ${patient.triage_category}`}>
+                <div className="tag-strip" aria-label={`${patient.triage_category} tag`}>
+                  <strong>{patient.triage_category}</strong>
                 </div>
-                
-                <div className="table-container">
-                    <table className="queue-table">
-                        <thead>
-                            <tr>
-                                <th>Response Time</th>
-                                <th>Severity</th>
-                                <th>Origin</th>
-                                <th>Symptom Report</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {queue.map(patient => (
-                                <tr key={patient.report_id} className={`row-${patient.triage_category}`}
-                                  style={patient.triage_category === 'RED' ? { borderLeft: '4px solid #EF4444', background: '#FEF2F2' } : {}}>
-                                    <td className="time-text">
-                                      {new Date(patient.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                      <span className="wait-duration" style={{
-                                        color: patient.triage_category === 'RED' ? '#EF4444' : '#6B7280',
-                                        fontWeight: patient.triage_category === 'RED' ? 'bold' : 'normal'
-                                      }}>
-                                        {getWaitingDuration(patient.created_at)}
-                                      </span>
-                                    </td>
-                                    <td><span className={`badge badge-${patient.triage_category}`}>{patient.triage_category}</span></td>
-                                    <td style={{ fontSize: '0.9rem', color: '#4B5563' }}>{patient.location || 'Unknown'}</td>
-                                    <td style={{ maxWidth: '200px', fontSize: '0.9rem', color: '#374151' }}>
-                                      <div>{patient.ai_analysis?.interpreted_symptom || patient.symptoms}</div>
-                                      {patient.patient_phone && (
-                                        <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                            <a href={formatPhoneLink(patient.patient_phone)} className="btn-call"
-                                                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', textDecoration: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', background: patient.triage_category === 'RED' ? '#FEE2E2' : '#F3F4F6', color: patient.triage_category === 'RED' ? '#DC2626' : '#4B5563', border: '1px solid #E5E7EB' }}>
-                                                <Phone size={12} /> Call
-                                            </a>
-                                            <a href={formatWhatsAppLink(patient.patient_phone)} target="_blank" rel="noopener noreferrer" className="btn-whatsapp"
-                                                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', textDecoration: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', background: '#DCFCE7', color: '#166534', border: '1px solid #86EFAC' }}>
-                                                <MessageCircle size={12} /> Chat
-                                            </a>
-                                        </div>
-                                      )}
-                                    </td>
-                                    <td>
-                                        <button className="btn-queue btn-treated" onClick={() => markAsTreated(patient.report_id)}>
-                                            <Send size={14} style={{ marginRight: '6px' }}/> Resolve Case
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {queue.length === 0 && (
-                                <tr>
-                                  <td colSpan="5" style={{textAlign: 'center', padding: '3rem', color: '#9CA3AF'}}>
-                                    <CheckCircle size={40} style={{ marginBottom: '10px', opacity: 0.3 }} /><br/>All clear.
-                                  </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                <div className="tag-main">
+                  <div className="tag-meta">
+                    <span className="mono">#{patient.report_id}</span>
+                    <span>{patient.location || 'Unknown county'}</span>
+                    {report.age && <span>{report.age} yrs · {report.sex}</span>}
+                    <span className="mono">{new Date(patient.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="tag-wait">{getWaitingDuration(patient.created_at)}</span>
+                  </div>
+                  <p className="tag-symptoms">{report.body}</p>
+                  {patient.ai_analysis?.reasoning && (
+                    <p className="kpi-note" style={{ marginTop: 6 }}>AI: {patient.ai_analysis.reasoning}</p>
+                  )}
+                  {patient.patient_phone && (
+                    <div className="tag-contact">
+                      <a href={formatPhoneLink(patient.patient_phone)} className="chip-link"><Phone size={13} /> Call</a>
+                      <a href={formatWhatsAppLink(patient.patient_phone)} target="_blank" rel="noopener noreferrer" className="chip-link">
+                        <MessageCircle size={13} /> WhatsApp
+                      </a>
+                    </div>
+                  )}
                 </div>
-            </section>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <section className="card stats-section">
-              <h3>Case Volume</h3>
-              <div className="chart-container" style={{ height: '300px', marginTop: '20px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats}>
-                    <XAxis dataKey="name" stroke="#9CA3AF" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis allowDecimals={false} stroke="#9CA3AF" fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip cursor={{fill: '#F3F4F6'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
-                    <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={50}>
-                      {stats.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <div className="tag-actions">
+                  <button className="btn-queue" onClick={() => markAsTreated(patient.report_id)}>
+                    <Check size={14} /> Resolve
+                  </button>
+                </div>
+              </article>
+              );
+            })}
+            {queue.length === 0 && (
+              <div className="tag-empty">
+                <CheckCircle size={32} />
+                <strong>No one is waiting</strong>
+                New reports from the kiosk and USSD appear here instantly.
               </div>
-            </section>
-        </div>
+            )}
+          </div>
+        </section>
+
+        <aside className="stack">
+          <section className="card">
+            <div className="section-label">
+              <h3><MapIcon size={18} /> Hotspots</h3>
+              <span className="count">by county</span>
+            </div>
+            <div className="map-frame"><DiseaseMap patients={queue} /></div>
+          </section>
+
+          <section className="card">
+            <div className="section-label">
+              <h3>Case volume</h3>
+              <span className="count">open cases by tag</span>
+            </div>
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats} margin={{ top: 8, right: 4, left: -24, bottom: 0 }}>
+                  <XAxis dataKey="name" stroke="#6a7888" fontSize={11} tickLine={false} axisLine={false} fontFamily="IBM Plex Mono" />
+                  <YAxis allowDecimals={false} stroke="#6a7888" fontSize={11} tickLine={false} axisLine={false} fontFamily="IBM Plex Mono" />
+                  <Tooltip cursor={{ fill: '#f4f2ed' }} contentStyle={{ borderRadius: 8, border: '1px solid #e0dcd2', fontFamily: 'IBM Plex Sans' }} />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={44}>
+                    {stats.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   );
