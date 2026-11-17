@@ -1,11 +1,11 @@
-#  Afya-Pulse  
+# Afya-Pulse
 ## AI-Powered Healthcare Triage & Surveillance System
 
 **Afya-Pulse** is a full-stack, real-time medical surveillance and AI-driven triage platform designed specifically for the **Kenyan healthcare context**.  
 It leverages advanced AI to analyze patient symptoms (including **Sheng** and **Swahili**), categorize medical urgency, and provide **real-time visualization** for medical command centers.
 
 
-##  Core Features
+## Core Features
 
 - **AI-Powered Triage**  
   Uses **Llama 3.3 (via Groq API)** to analyze patient symptoms and assign risk levels:
@@ -30,7 +30,7 @@ It leverages advanced AI to analyze patient symptoms (including **Sheng** and **
 
 ---
 
-##  Architecture
+## Architecture
 
 Afya-Pulse follows a **microservices-inspired architecture** for scalability and clear separation of concerns:
 
@@ -66,7 +66,7 @@ Afya-Pulse follows a **microservices-inspired architecture** for scalability and
 
 ---
 
-##  Screenshots
+## Screenshots
 
 <img width="1855" height="804" alt="Screenshot 2026-01-04 125019" src="https://github.com/user-attachments/assets/2a440d25-95bb-4558-9d41-f97fa8c41ea5" />
 <img width="1833" height="816" alt="Screenshot 2026-01-04 125029" src="https://github.com/user-attachments/assets/bb0db886-4048-4a81-92ad-e2f9ddd2da66" />
@@ -86,14 +86,14 @@ Afya-Pulse follows a **microservices-inspired architecture** for scalability and
    Streamlined interface for registration and AI-assisted triage.
 
 3. **Secure Authentication**  
-   Firebase-powered login for Ministry of Health (MoH) staff.
+   Firebase-powered login for clinical staff.
 
 4. **Health Monitoring**  
    24/7 uptime surveillance ensuring system reliability.
 
 ---
 
-##  Tech Stack
+## Tech Stack
 
 | Component | Technology |
 |---------|-----------|
@@ -107,7 +107,7 @@ Afya-Pulse follows a **microservices-inspired architecture** for scalability and
 
 ---
 
-##  Installation & Setup
+## Installation & Setup
 
 ### Environment Variables
 
@@ -116,20 +116,40 @@ Afya-Pulse follows a **microservices-inspired architecture** for scalability and
 GROQ_API_KEY=your_key_here
 SERVICE_SECRET_KEY=your_random_string_key
 PORT=10000
+```
 
+### Run locally
 
-🛡 Security
+```bash
+git clone https://github.com/Tolbert-Okoth/afya-pulse.git
+cd afya-pulse
 
-Service-to-Service Authentication
-Internal communication between Backend and AI Engine secured via a shared SERVICE_SECRET_KEY.
+# AI service
+cd ai-service && pip install -r requirements.txt && python app.py
 
-Token Refreshing
-Uses Firebase onIdTokenChanged to prevent session expiration during long clinical shifts.
+# API gateway (new terminal)
+cd backend-node && npm install && node server.js
 
-CORS Protection
-Strict origin filtering to prevent unauthorized API access.'
+# Dashboard (new terminal)
+cd frontend-dashboard && npm install && npm run dev
+```
 
- Built for Kenya 🇰🇪
+The backend and dashboard also need their own `.env` files (database URL, Firebase config, AI service URL and the shared `SERVICE_SECRET_KEY`).
 
-Afya-Pulse is designed with local language, infrastructure, and public-health needs in mind—bridging AI and healthcare for faster, smarter medical response.
+---
 
+## Security
+
+- **Service-to-service authentication:** the backend and AI service share a `SERVICE_SECRET_KEY`.
+- **Token refreshing:** Firebase `onIdTokenChanged` keeps sessions alive through long clinical shifts.
+- **CORS protection:** strict origin filtering blocks unauthorized API calls.
+
+---
+
+## Built for Kenya
+
+Afya-Pulse is designed around local languages, patchy infrastructure and public-health needs.
+
+> **Prototype.** Afya-Pulse is a portfolio project and has not been clinically validated. Triage suggestions must be confirmed by a qualified clinician.
+
+Built by **Tolbert Okoth**: [GitHub](https://github.com/Tolbert-Okoth) · [LinkedIn](https://www.linkedin.com/in/tolbert-asumba-542b3b344)
